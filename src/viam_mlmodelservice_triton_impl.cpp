@@ -424,7 +424,19 @@ class Service : public vsdk::MLModelService {
         }
 
         auto preferred_input_memory_type = attributes->find("preferred_input_memory_type");
-        if (preferred_input_memory_type != attributes->end()) {
+        if (preferred_input_memory_type == attributes->end()) {
+            // If the user didn't specify, decide if we can upgrade to
+            // GPU based on whether any GPU devices are present.
+            try {
+                int count = 0;
+                call_cuda(cudaGetDeviceCount)(&count);
+                if (count > 0) {
+                    state->preferred_input_memory_type = TRITONSERVER_MEMORY_GPU;
+                }
+            } catch (...) {
+                // Intentionally burying this exception
+            }
+        } else {
             auto* const preferred_input_memory_type_value =
                 preferred_input_memory_type->second->get<std::string>();
             if (!preferred_input_memory_type_value) {
@@ -1108,7 +1120,9 @@ class Service : public vsdk::MLModelService {
         // to bind to an older version.
         std::int64_t model_version = -1;
 
-        // If the user did not specify a memory type, default to CPU
+        // If the user did not specify a memory type, we will query
+        // for whether any CUDA devices are available and select
+        // between GPU and CPU on that basis. Fallback is always CPU.
         TRITONSERVER_MemoryType preferred_input_memory_type = TRITONSERVER_MEMORY_CPU;
 
         // The preferred memory type id. Effectively, this is the
