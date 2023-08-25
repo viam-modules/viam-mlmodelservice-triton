@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "viam_mlmodelservice_triton_impl.hpp"
+
 #include <pthread.h>
 #include <signal.h>
 
@@ -63,11 +65,12 @@ auto call_cuda(cudaError_t (*fn)(Args... args)) noexcept {
     };
 }
 
-// An MLModelService instance which runs many models via the
-// NVidia Triton Server API.
+// An MLModelService instance which runs many models via the NVidia
+// Triton Server API.
 //
-// Configuration requires the following parameters:
-//    TODO
+// Please see
+// https://github.com/viamrobotics/viam-mlmodelservice-triton/blob/main/README.md
+// for configuration parameters and deployment guidelines.
 class Service : public vsdk::MLModelService {
    public:
     explicit Service(vsdk::Dependencies dependencies, vsdk::ResourceConfig configuration)
@@ -371,28 +374,20 @@ class Service : public vsdk::MLModelService {
         }
         state->model_repo_path = std::move(*model_repo_path_string);
 
-        // Pull the backend directory out of the configuration.
-        //
-        // TODO: Does this really belong in the config? Or should it be part of the docker
-        // setup?
+        // Pull the backend directory out of the configuration, if provided.
         auto backend_directory = attributes->find("backend_directory");
-        if (backend_directory == attributes->end()) {
-            std::ostringstream buffer;
-            buffer << service_name
-                   << ": Required parameter `backend_directory` not found in configuration";
-            throw std::invalid_argument(buffer.str());
+        if (backend_directory != attributes->end()) {
+            auto* const backend_directory_string = backend_directory->second->get<std::string>();
+            if (!backend_directory_string || backend_directory_string->empty()) {
+                std::ostringstream buffer;
+                buffer << service_name
+                       << ": Configuration parameter `backend_directory` is either not a"
+                          "string "
+                          "or is an empty string";
+                throw std::invalid_argument(buffer.str());
+            }
+            state->backend_directory = std::move(*backend_directory_string);
         }
-
-        auto* const backend_directory_string = backend_directory->second->get<std::string>();
-        if (!backend_directory_string || backend_directory_string->empty()) {
-            std::ostringstream buffer;
-            buffer << service_name
-                   << ": Required non-empty string parameter `backend_directory` is either not a "
-                      "string "
-                      "or is an empty string";
-            throw std::invalid_argument(buffer.str());
-        }
-        state->backend_directory = std::move(*backend_directory_string);
 
         // Pull the model name out of the configuration.
         auto model_name = attributes->find("model_name");
@@ -540,8 +535,8 @@ class Service : public vsdk::MLModelService {
         cxxapi::call(cxxapi::the_shim.ServerOptionsSetBackendDirectory)(
             server_options.get(), state->backend_directory.c_str());
 
-        // TODO: Parameterize?
-        cxxapi::call(cxxapi::the_shim.ServerOptionsSetLogVerbose)(server_options.get(), 0);
+        cxxapi::call(cxxapi::the_shim.ServerOptionsSetLogWarn)(server_options.get(), true);
+        cxxapi::call(cxxapi::the_shim.ServerOptionsSetLogError)(server_options.get(), true);
 
         // Needed so we can load a tensorflow model without a config file
         cxxapi::call(cxxapi::the_shim.ServerOptionsSetStrictModelConfig)(server_options.get(),
@@ -1102,7 +1097,7 @@ class Service : public vsdk::MLModelService {
         std::string model_repo_path;
 
         // The path to the backend directory containing execution backends.
-        std::string backend_directory;
+        std::string backend_directory = kDefaultBackendDirectory;
 
         // The name of the specific model that this instance of the
         // triton service will bind to.

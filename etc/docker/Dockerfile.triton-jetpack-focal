@@ -118,7 +118,10 @@ RUN apt-get install -y --no-install-recommends \
 ADD . ${HOME}/opt/src/viam-mlmodelservice-triton
 RUN \
     cd ${HOME}/opt/src/viam-mlmodelservice-triton && \
-    cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_PREFIX_PATH=/opt/viam && \
+    cmake -S . -B build -G Ninja \
+      -DVIAM_MLMODELSERVICE_TRITON_TRITONSERVER_ROOT=/opt/tritonserver \
+      -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+      -DCMAKE_PREFIX_PATH=/opt/viam && \
     cmake --build build --target install -- -v && \
     cmake --install build --prefix /opt/viam
 

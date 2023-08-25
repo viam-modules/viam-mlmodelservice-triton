@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <dlfcn.h>
-
 #pragma once
 
 #include <memory>
@@ -38,6 +36,8 @@ struct shim {
     decltype(TRITONSERVER_ServerOptionsNew)* ServerOptionsNew = nullptr;
     decltype(TRITONSERVER_ServerOptionsSetBackendDirectory)* ServerOptionsSetBackendDirectory =
         nullptr;
+    decltype(TRITONSERVER_ServerOptionsSetLogWarn)* ServerOptionsSetLogWarn = nullptr;
+    decltype(TRITONSERVER_ServerOptionsSetLogError)* ServerOptionsSetLogError = nullptr;
     decltype(TRITONSERVER_ServerOptionsSetLogVerbose)* ServerOptionsSetLogVerbose = nullptr;
     decltype(TRITONSERVER_ServerOptionsSetMinSupportedComputeCapability)*
         ServerOptionsSetMinSupportedComputeCapability = nullptr;

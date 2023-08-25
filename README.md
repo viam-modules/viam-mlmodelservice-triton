@@ -84,6 +84,29 @@ The next step is to create an instance of the resource this module
 serves. This will go in the `services` section of your robot's JSON
 configuration:
 
+A minimal configuration looks like:
+
+```
+  ...
+  "services": [
+    ...
+    {
+      "type": "mlmodel",
+      "attributes": {
+        "model_name": "efficientdet-lite4-detection",
+        "model_repository_path": "/path/to/.viam/triton/repository",
+      },
+      "model": "viam:mlmodelservice:triton",
+      "name": "mlmodel-effdet-triton"
+    },
+    ...
+  ],
+  ...
+```
+
+A complete configuration, specifying many optional parameters, might look like:
+
+
 ```
   ...
   "services": [
@@ -121,36 +144,40 @@ The `type` field must be `mlmodel`, and the `model` field must use the
 `viam:mlmodelservice:triton` tag, but the `name` of this module is up
 to you. The following `attribute` level configurations are available:
 
-- `backend_directory` [required]: This must be
-  `/opt/tritonserver/backends` unless you have relocated the backends
-  directory somewhere. Note that this is a container side path.
-
 - `model_name` [required]: The model to be loaded from the repository.
-
-- `model_version` [optional]: The version of the model to be
-  loaded. If not specified, the module will use the newest version of
-  the model named by `model_name`.
 
 - `model_repository_path` [required]: The (container side) path to a
   model repository. Note that this must be a subdirectory of the
   `$HOME/.viam` directory of the user running `viam-server`.
 
-- `preferred_input_memory_type`: One of `cpu`, `cpu-pinned`, or
-  `gpu`. This controlls the type of memory that will be allocated by
-  the module for input tensors. For most models, `gpu` is probably the
-  best choice, but the default is `cpu` since the module cannot assume
-  that a GPU is available.
+- `backend_directory` [optional, default determined at build time]: A
+  container side path to the TritonServer "backend" directory. You
+  normally do not need to override this; the build will set it to the
+  backend directory of the Triton Server installation in the
+  container. You may set it if you wish to use a different set of
+  backends.
 
-- `preferred_input_memory_type_id`: CUDA identifier on which to
-  allocate `gpu` or `cpu-pinned` input tensors. This defaults to `0`,
-  meaning the first device. You probably don't need to change this
-  unless you have multiple GPUs.
+- `model_version` [optional, defaults to -1, meaning 'newest']: The
+  version of the model to be loaded. If not specified, the module will
+  use the newest version of the model named by `model_name`.
 
-- `tensor_name_remappings`: Provides two dictionaries under the
-  `input` and `output` keys that rename the models tensors. Higher
-  level services may expect tensors with particular names (e.g. the
-  Viam Vision services). Use this map to rename the tensors from the
-  loaded model as needed to meet those requirements.
+- `preferred_input_memory_type` [optional, defaults to `cpu`]: One of
+  `cpu`, `cpu-pinned`, or `gpu`. This controlls the type of memory
+  that will be allocated by the module for input tensors. For most
+  models, `gpu` is probably the best choice, but the default is `cpu`
+  since the module cannot assume that a GPU is available.
+
+- `preferred_input_memory_type_id` [optional, defaults to `0`]: CUDA
+  identifier on which to allocate `gpu` or `cpu-pinned` input
+  tensors. This defaults to `0`, meaning the first device. You
+  probably don't need to change this unless you have multiple GPUs.
+
+- `tensor_name_remappings` [optional, defaults to `{}`]: Provides two
+  dictionaries under the `input` and `output` keys that rename the
+  models tensors. Higher level services may expect tensors with
+  particular names (e.g. the Viam Vision services). Use this map to
+  rename the tensors from the loaded model as needed to meet those
+  requirements.
 
 ## Connecting the Viam Vision Service
 

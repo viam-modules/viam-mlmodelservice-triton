@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "viam_mlmodelservice_triton.hpp"
+
 #include <dlfcn.h>
 
 #include <iostream>
 #include <string>
-
-#include "viam_mlmodelservice_triton.hpp"
 
 namespace viam {
 namespace mlmodelservice {
@@ -41,6 +41,15 @@ int main(int argc, char* argv[]) {
         return EXIT_FAILURE;
     }
 
+    // Please see
+    // https://forums.developer.nvidia.com/t/symbol-resolution-conflicts-with-triton-server-for-jetpack-tensorflow-backend-grpc-protobuf-absl-etc/262468/4
+    // for background on the problem being solved here. By binding to
+    // Triton's symbols here and dependency injecting them into our
+    // `impl` library, we make it so we can dlopen our implementation
+    // RTLD_LOCAL. That ensures that symbols that we use are not made
+    // available to the backend implementations like TensorFlow that
+    // Triton Server will later dlopen itself.
+
     cxxapi::the_shim.ApiVersion = &TRITONSERVER_ApiVersion;
 
     cxxapi::the_shim.ErrorNew = &TRITONSERVER_ErrorNew;
@@ -51,6 +60,8 @@ int main(int argc, char* argv[]) {
     cxxapi::the_shim.ServerOptionsNew = &TRITONSERVER_ServerOptionsNew;
     cxxapi::the_shim.ServerOptionsSetBackendDirectory =
         &TRITONSERVER_ServerOptionsSetBackendDirectory;
+    cxxapi::the_shim.ServerOptionsSetLogWarn = &TRITONSERVER_ServerOptionsSetLogWarn;
+    cxxapi::the_shim.ServerOptionsSetLogError = &TRITONSERVER_ServerOptionsSetLogError;
     cxxapi::the_shim.ServerOptionsSetLogVerbose = &TRITONSERVER_ServerOptionsSetLogVerbose;
     cxxapi::the_shim.ServerOptionsSetMinSupportedComputeCapability =
         &TRITONSERVER_ServerOptionsSetMinSupportedComputeCapability;
@@ -96,7 +107,7 @@ int main(int argc, char* argv[]) {
     cxxapi::the_shim.InferenceResponseDelete = &TRITONSERVER_InferenceResponseDelete;
 
     // TODO: This should probably account for windows/macOS someday.
-    auto lvmti = dlopen("libviam_mlmodelservice_triton_impl.so", RTLD_NOW);
+    auto lvmti = dlopen("libviam_mlmodelservice_triton_impl.so", RTLD_LOCAL | RTLD_NOW);
     if (!lvmti) {
         const auto err = dlerror();
         std::cout << service_name
