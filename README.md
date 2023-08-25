@@ -15,22 +15,23 @@ This module is still under active development.
 
 ## Build and Install
 
-- Ensure that the NVidia Container Runtime is installed:
- - `sudo apt-get install nvidia-container`
+- Ensure that the NVidia Container Runtime is installed: `sudo apt-get
+  install nvidia-container`. Note that `nvidia-container` is part of
+  `nvidia-jetpack` so if you have Jetpack installed on the board, you
+  probably already have this. But it is worth running the above
+  command to make sure!
 
 - Clone this repository to any location on the system where you intend
   to run inference.
 
 - Build the docker image `docker build . -t viam-mlmodelservice-triton
   -f etc/docker/Dockerfile.triton-jetpack-focal`
-
- - NOTE: The image name currently *must* be
+    - NOTE: When this module is available in
+   the module registry, this step will be unncessary.
+    - NOTE: The image name currently *must* be
    `viam-mlmodelservice-triton`. This restriction will be lifted in
    the future once the Docker image is published to
    [GHCR](https://ghcr.io).
-
- - NOTE: When this module is available in the module registry, this
-   step will be unncessary.
 
 ## Registering the Module with a Robot
 
@@ -88,6 +89,12 @@ The next step is to create an instance of the resource this module serves. This 
     {
       "type": "mlmodel",
       "attributes": {
+        "backend_directory": "/opt/tritonserver/backends",
+        "model_name": "efficientdet-lite4-detection",
+        "model_version": 1,
+        "model_repository_path": "/path/to/.viam/triton/repository",
+        "preferred_input_memory_type_id": 0,
+        "preferred_input_memory_type": "gpu",
         "tensor_name_remappings": {
           "outputs": {
             "output_3": "n_detections",
@@ -98,12 +105,7 @@ The next step is to create an instance of the resource this module serves. This 
           "inputs": {
             "images": "image"
           }
-        },
-        "backend_directory": "/opt/tritonserver/backends",
-        "model_name": "efficientdet-lite4-detection",
-        "model_repository_path": "/path/to/.viam/triton/repository",
-        "preferred_input_memory_type_id": 0,
-        "preferred_input_memory_type": "gpu"
+        }
       },
       "model": "viam:mlmodelservice:triton",
       "name": "mlmodel-effdet-triton"
@@ -113,25 +115,45 @@ The next step is to create an instance of the resource this module serves. This 
   ...
 ```
 
-The `type` field must be `mlmodel`, and the `model` field must use the `viam:mlmodelservice:triton` tag, but the `name` of this module is up to you. The following `attribute` level configurations are available:
+The `type` field must be `mlmodel`, and the `model` field must use the
+`viam:mlmodelservice:triton` tag, but the `name` of this module is up
+to you. The following `attribute` level configurations are available:
 
-- `backend_directory` [required]: This must be `/opt/tritonserver/backends` unless you have relocated the backends directory somewhere. Note that this is a container side path.
+- `backend_directory` [required]: This must be
+  `/opt/tritonserver/backends` unless you have relocated the backends
+  directory somewhere. Note that this is a container side path.
 
 - `model_name` [required]: The model to be loaded from the repository.
 
-- `model_version` [optional]: The version of the model to be loaded. If not specified, the module will use the newest version of the model named by `model_name`.
+- `model_version` [optional]: The version of the model to be
+  loaded. If not specified, the module will use the newest version of
+  the model named by `model_name`.
 
-- `model_repository_path` [required]: The (container side) path to a model repository. Note that this must be a subdirectory of the `$HOME/.viam` directory of the user running `viam-server`.
+- `model_repository_path` [required]: The (container side) path to a
+  model repository. Note that this must be a subdirectory of the
+  `$HOME/.viam` directory of the user running `viam-server`.
 
-- `preferred_input_memory_type`: One of `cpu`, `cpu-pinned`, or `gpu`. This controlls the type of memory that will be allocated by the module for input tensors. For most models, `gpu` is probably the best choice, but the default is `cpu` since the module cannot assume that a GPU is available.
+- `preferred_input_memory_type`: One of `cpu`, `cpu-pinned`, or
+  `gpu`. This controlls the type of memory that will be allocated by
+  the module for input tensors. For most models, `gpu` is probably the
+  best choice, but the default is `cpu` since the module cannot assume
+  that a GPU is available.
 
-- `preferred_input_memory_type_id`: CUDA identifier on which to allocate `gpu` or `cpu-pinned` input tensors. This defaults to `0`, meaning the first device. You probably don't need to change this unless you have multiple GPUs.
+- `preferred_input_memory_type_id`: CUDA identifier on which to
+  allocate `gpu` or `cpu-pinned` input tensors. This defaults to `0`,
+  meaning the first device. You probably don't need to change this
+  unless you have multiple GPUs.
 
-- `tensor_name_remappings`: Provides two dictionaries under the `input` and `output` keys that rename the models tensors. Higher level services may expect tensors with particular names (e.g. the Viam Vision services). Use this map to rename the tensors from the loaded model as needed to meet those requirements.
+- `tensor_name_remappings`: Provides two dictionaries under the
+  `input` and `output` keys that rename the models tensors. Higher
+  level services may expect tensors with particular names (e.g. the
+  Viam Vision services). Use this map to rename the tensors from the
+  loaded model as needed to meet those requirements.
 
 ## Connecting the Viam Vision Service
 
-If all has gone right, you can now create a Viam vision service with a configuration like the following:
+If all has gone right, you can now create a Viam vision service with a
+configuration like the following:
 
 ```
   ...
@@ -147,4 +169,12 @@ If all has gone right, you can now create a Viam vision service with a configura
     }
 ```
 
-You can now connect this vision service to a transform camera, or get detections programatically via any SDK.
+You can now connect this vision service to a transform camera, or get
+detections programatically via any SDK.
+
+## Verifying that the GPU is in use
+
+I recommend using the
+[`jtop`](https://github.com/rbonghi/jetson_stats) utility on the
+Jetson line in order to monitor GPU usage and validate that Triton is
+accelerating inference via the GPU.
