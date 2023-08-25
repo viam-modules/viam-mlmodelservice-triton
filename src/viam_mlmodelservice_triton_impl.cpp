@@ -910,7 +910,6 @@ class Service : public vsdk::MLModelService {
                     return call_cuda(cudaFreeHost)(ptr);
                 }
                 default: {
-                std:
                     std::cerr << service_name << "Unsupported CUDA memory type to free - aborting: "
                               << cuda_attrs.type;
                     std::abort();
