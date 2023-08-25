@@ -66,19 +66,36 @@ RUN apt-get -y --no-install-recommends install \
     gpg
 
 RUN apt-key adv --fetch-key http://repo.download.nvidia.com/jetson/jetson-ota-public.asc
-RUN apt-add-repository -y 'deb http://repo.download.nvidia.com/jetson/common r35.3 main'
-RUN apt update
+RUN apt-add-repository -y 'deb http://repo.download.nvidia.com/jetson/common r35.4 main'
+RUN apt-add-repository -y 'deb http://repo.download.nvidia.com/jetson/t234 r35.4 main'
 
-# Install components required for Triton Server
+# Work around fact that some packages have hardware expectations
+#
+# See https://forums.balena.io/t/getting-linux-for-tegra-into-a-container-on-balena-os/179421/20
+RUN mkdir -p /opt/nvidia/l4t-packages/
+RUN touch /opt/nvidia/l4t-packages/.nv-l4t-disable-boot-fw-update-in-preinstall
+
+# Similar hack to get PVA stuff to install
+RUN mkdir -p /lib/firmware
+
+# Some jetpack post-inst's need sudo
+RUN apt-get install -y --no-install-recommends \
+    sudo
+
+# Install NVidia JetPack Runtime
+RUN apt-get update
+RUN apt-get install -y --no-install-recommends \
+    nvidia-jetpack-runtime
+
+# Install documented Triton Server requirements.
+#
+# See https://docs.nvidia.com/deeplearning/triton-inference-server/user-guide/docs/user_guide/jetson.html#runtime-dependencies-for-triton
 RUN apt-get install -y --no-install-recommends \
     libarchive-dev \
     libb64-0d \
-    libjemalloc2 \
     libopenblas-dev \
     libre2-5 \
     libssl1.1 \
-    nvidia-cuda-dev \
-    nvidia-cudnn8 \
     python3 \
     python3-dev \
     python3-pip \
@@ -91,6 +108,11 @@ RUN curl -L https://github.com/triton-inference-server/server/releases/download/
 # Fixup inconsistent permissions issues in triton tarball
 RUN chmod -R oug+rX /opt/tritonserver/
 
+# We also need the jetpack -dev environment for building
+# viam-mlmodelservice-triton
+RUN apt-get install -y --no-install-recommends \
+    nvidia-jetpack-dev
+
 # Build and install the Viam Triton MLModelService from our
 # local state
 ADD . ${HOME}/opt/src/viam-mlmodelservice-triton
@@ -100,6 +122,8 @@ RUN \
     cmake --build build --target install -- -v && \
     cmake --install build --prefix /opt/viam
 
-# The viam-mlmodelservice-triton.sh script needs `sudo`.
+# The viam-mlmodelservice-triton.sh script needs `sudo`, and we like
+# to run the server under jemalloc
 RUN apt-get install -y --no-install-recommends \
+    libjemalloc2 \
     sudo
