@@ -80,7 +80,9 @@ integer. Newer versions will be preferred by default.
 
 ## Instantiating the module for a deployed model
 
-The next step is to create an instance of the resource this module serves. This will go in the `services` section of your robot's JSON configuration:
+The next step is to create an instance of the resource this module
+serves. This will go in the `services` section of your robot's JSON
+configuration:
 
 ```
   ...
