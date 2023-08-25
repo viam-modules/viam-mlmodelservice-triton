@@ -161,11 +161,11 @@ to you. The following `attribute` level configurations are available:
   version of the model to be loaded. If not specified, the module will
   use the newest version of the model named by `model_name`.
 
-- `preferred_input_memory_type` [optional, defaults to `cpu`]: One of
-  `cpu`, `cpu-pinned`, or `gpu`. This controlls the type of memory
-  that will be allocated by the module for input tensors. For most
-  models, `gpu` is probably the best choice, but the default is `cpu`
-  since the module cannot assume that a GPU is available.
+- `preferred_input_memory_type` [optional, see below for default]: One
+  of `cpu`, `cpu-pinned`, or `gpu`. This controlls the type of memory
+  that will be allocated by the module for input tensors. If not
+  specified, this will default to `cpu` if no CUDA-capable devices are
+  detected at runtime, or to `gpu` if CUDA-capable devices are found.
 
 - `preferred_input_memory_type_id` [optional, defaults to `0`]: CUDA
   identifier on which to allocate `gpu` or `cpu-pinned` input
