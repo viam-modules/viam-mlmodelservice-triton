@@ -1,0 +1,132 @@
+FROM ubuntu:focal
+
+ENV HOME /root
+ARG DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update
+
+RUN apt-get -y dist-upgrade
+
+RUN apt-get -y --no-install-recommends install \
+    build-essential \
+    ca-certificates \
+    curl \
+    g++ \
+    git \
+    libboost-all-dev \
+    libc-ares-dev \
+    libre2-dev \
+    libssl-dev \
+    ninja-build \
+    pkg-config \
+    software-properties-common \
+    wget \
+    zlib1g-dev
+
+# Add public key and repository to get cmake 3.25+
+# TODO: Use apt-key and apt-add-repository?
+RUN wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - > /usr/share/keyrings/kitware-archive-keyring.gpg
+RUN echo 'deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] https://apt.kitware.com/ubuntu/ focal main' > /etc/apt/sources.list.d/kitware.list
+RUN apt-get update
+RUN apt-get -y install cmake
+
+# Build grpc (and proto, etc.) from source, since we don't have a good versin on focal
+RUN mkdir -p ${HOME}/opt/src
+RUN cd ${HOME}/opt/src && \
+    git clone --recurse-submodules -b v1.52.0 --depth 1 --shallow-submodules https://github.com/grpc/grpc && \
+    cd grpc && \
+    mkdir -p build && \
+    cd build && \
+    cmake .. -G Ninja \
+        -DgRPC_ZLIB_PROVIDER=package \
+        -DgRPC_CARES_PROVIDER=package \
+        -DgRPC_RE2_PROVIDER=package \
+        -DgRPC_SSL_PROVIDER=package \
+        -DgRPC_INSTALL=ON \
+        -DgRPC_BUILD_TESTS=OFF \
+        -DBUILD_SHARED_LIBS=ON \
+        -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+        -DCMAKE_INSTALL_PREFIX=/usr/local \
+        -DCMAKE_INSTALL_RPATH=/usr/local/lib && \
+    ninja install && \
+    cd .. && \
+    rm -rf build
+
+# Clone, build, and install the viam-cpp-sdk repo
+RUN cd ${HOME}/opt/src && \
+    git clone https://github.com/viamrobotics/viam-cpp-sdk.git && \
+    cd viam-cpp-sdk && \
+    cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo && \
+    cmake --build build --target install -j3 -- -v && \
+    cmake --install build --prefix /opt/viam
+
+# Install jetpack components required for Triton Server and the module
+RUN apt-get -y --no-install-recommends install \
+    gnupg \
+    gpg
+
+RUN apt-key adv --fetch-key http://repo.download.nvidia.com/jetson/jetson-ota-public.asc
+RUN apt-add-repository -y 'deb http://repo.download.nvidia.com/jetson/common r35.4 main'
+RUN apt-add-repository -y 'deb http://repo.download.nvidia.com/jetson/t234 r35.4 main'
+
+# Work around fact that some packages have hardware expectations
+#
+# See https://forums.balena.io/t/getting-linux-for-tegra-into-a-container-on-balena-os/179421/20
+RUN mkdir -p /opt/nvidia/l4t-packages/
+RUN touch /opt/nvidia/l4t-packages/.nv-l4t-disable-boot-fw-update-in-preinstall
+
+# Similar hack to get PVA stuff to install
+RUN mkdir -p /lib/firmware
+
+# Some jetpack post-inst's need sudo
+RUN apt-get install -y --no-install-recommends \
+    sudo
+
+# Install NVidia JetPack Runtime
+RUN apt-get update
+RUN apt-get install -y --no-install-recommends \
+    nvidia-jetpack-runtime
+
+# Install documented Triton Server requirements.
+#
+# See https://docs.nvidia.com/deeplearning/triton-inference-server/user-guide/docs/user_guide/jetson.html#runtime-dependencies-for-triton
+RUN apt-get install -y --no-install-recommends \
+    libarchive-dev \
+    libb64-0d \
+    libopenblas-dev \
+    libre2-5 \
+    libssl1.1 \
+    python3 \
+    python3-dev \
+    python3-pip \
+    rapidjson-dev \
+    zlib1g
+
+# Download and install the jetpack build of TritonServer and install it to /opt/tritonserver
+RUN curl -L https://github.com/triton-inference-server/server/releases/download/v2.35.0/tritonserver2.35.0-jetpack5.1.2.tgz | tar xfz - -C /opt
+
+# Fixup inconsistent permissions issues in triton tarball
+RUN chmod -R oug+rX /opt/tritonserver/
+
+# We also need the jetpack -dev environment for building
+# viam-mlmodelservice-triton
+RUN apt-get install -y --no-install-recommends \
+    nvidia-jetpack-dev
+
+# Build and install the Viam Triton MLModelService from our
+# local state
+ADD . ${HOME}/opt/src/viam-mlmodelservice-triton
+RUN \
+    cd ${HOME}/opt/src/viam-mlmodelservice-triton && \
+    cmake -S . -B build -G Ninja \
+      -DVIAM_MLMODELSERVICE_TRITON_TRITONSERVER_ROOT=/opt/tritonserver \
+      -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+      -DCMAKE_PREFIX_PATH=/opt/viam && \
+    cmake --build build --target install -- -v && \
+    cmake --install build --prefix /opt/viam
+
+# The viam-mlmodelservice-triton.sh script needs `sudo`, and we like
+# to run the server under jemalloc
+RUN apt-get install -y --no-install-recommends \
+    libjemalloc2 \
+    sudo
