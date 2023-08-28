@@ -221,10 +221,7 @@ struct lifecycle_traits<TRITONSERVER_Message> {
 
 template <typename Stdex = std::runtime_error, typename... Args>
 [[gnu::warn_unused_result]] constexpr auto call(TRITONSERVER_Error* (*fn)(Args... args)) noexcept {
-    // NOTE: The lack of perfect forwarding here is deliberate. The Triton API is in C. We want
-    // ordinary conversions (like std::string to const char*) to apply.
-    //
-    // TODO: Lies?
+    // NOTE: The lack of perfect forwarding here is deliberate.
     return [=](Args... args) {
         const auto error = take_unique(fn(args...));
         if (error) {
