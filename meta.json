@@ -1,0 +1,13 @@
+{
+  "name": "viam:python-container-example",
+  "visibility": "public",
+  "url": "https://github.com/viam-labs/python-container-module",
+  "description": "Example of deploying a python module with docker",
+  "models": [
+    {
+      "api": "rdk:component:sensor",
+      "model": "viam:disk_sensor:linux"
+    }
+  ],
+  "entrypoint": "run.sh"
+}
