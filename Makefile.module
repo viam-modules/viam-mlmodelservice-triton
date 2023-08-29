@@ -1,18 +1,10 @@
 TAG ?= ghcr.io/USER/REPO:0.0.0
 
-build: Dockerfile module/*
-	podman build -t $(TAG) .
-
-push: build
-	podman push $(TAG)
-
-run.sh: run.envsubst.sh
-	# render entrypoint script from template
+viam-mlmodelservice-triton.sh: bin/viam-mlmodelservice-triton.sh.envsubst
 	cat $< | TAG=$(TAG) DOLLAR=$$ envsubst > $@
 	chmod +x $@
 
-module.tar.gz: run.sh
-	# bundle module
+module.tar.gz: viam-mlmodelservice-triton.sh
 	tar czf $@ $^
 
-.PHONY: build push
+.PHONY: module.tar.gz

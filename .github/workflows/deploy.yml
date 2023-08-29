@@ -5,7 +5,7 @@ on:
 
 env:
   DOCKER_TAG: ghcr.io/${{ github.repository }}
-  VERSION: ${{ github.event_name == 'release' && github.ref_name || format('{0}-{1}', github.ref_name, github.run_number) }}
+  VERSION: ${{ github.event_name == 'release' && github.ref_name }}
 
 jobs:
   container:
@@ -26,21 +26,22 @@ jobs:
       with:
         tags: ${{ env.DOCKER_TAG }}:${{ env.VERSION }}
         pull: true
-        platforms: linux/amd64,linux/arm64
+        platforms: linux/arm64
         push: ${{ github.event_name == 'release' }}
+        file: etc/docker/Dockerfile.triton-jetpack-focal
   module:
     needs: [container]
     # todo: remove concurrency group once APP-2549 is fixed
     concurrency: no-simultaneous-upload-${{ github.ref_name }}-${{ github.run_number }}
     strategy:
       matrix:
-        platform: [amd64, arm64]
+        platform: [arm64]
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
     - name: build
       run: |
-        TAG=$DOCKER_TAG:$VERSION make module.tar.gz
+        TAG=$DOCKER_TAG:$VERSION make -f Makefile.module module.tar.gz
     - uses: viamrobotics/upload-module@main
       if: github.event_name == 'release'
       with:
