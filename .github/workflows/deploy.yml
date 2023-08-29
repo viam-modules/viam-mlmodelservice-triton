@@ -5,7 +5,7 @@ on:
 
 env:
   DOCKER_TAG: ghcr.io/${{ github.repository }}
-  VERSION: ${{ github.event_name == 'release' && github.ref_name }}
+  VERSION: ${{ github.ref_name }}
 
 jobs:
   container:
@@ -24,7 +24,7 @@ jobs:
         password: ${{ secrets.GITHUB_TOKEN }}
     - uses: docker/build-push-action@v4
       with:
-        tags: ${{ env.DOCKER_TAG }}:${{ env.VERSION }}
+        tags: ${{ env.DOCKER_TAG }}:${{ env.VERSION }},${{ env.DOCKER_TAG }}:latest
         pull: true
         platforms: linux/arm64
         push: ${{ github.event_name == 'release' }}
