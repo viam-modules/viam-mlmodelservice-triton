@@ -1,0 +1,10 @@
+TAG ?= ghcr.io/USER/REPO:0.0.0
+
+viam-mlmodelservice-triton.sh: bin/viam-mlmodelservice-triton.sh.envsubst
+	cat $< | TAG=$(TAG) DOLLAR=$$ envsubst > $@
+	chmod +x $@
+
+module.tar.gz: viam-mlmodelservice-triton.sh
+	tar czf $@ $^
+
+.PHONY: module.tar.gz

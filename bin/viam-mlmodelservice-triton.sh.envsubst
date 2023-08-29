@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SOCKET_DIR=`dirname $1`
+VIAM_DIR=`realpath ~/.viam`
+
+# TODO: Validate presence of NVidia container runtime
+
+exec docker run \
+     --rm \
+     --runtime=nvidia --gpus=all \
+     -v /etc/passwd:/etc/passwd \
+     -v /etc/group:/etc/group \
+     -v ${DOLLAR}SOCKET_DIR:${DOLLAR}SOCKET_DIR \
+     -v ${DOLLAR}VIAM_DIR:${DOLLAR}VIAM_DIR \
+     $TAG \
+     sudo -u \#$(id -u) LD_PRELOAD=libjemalloc.so.2 /opt/viam/bin/viam_mlmodelservice_triton "$@"
