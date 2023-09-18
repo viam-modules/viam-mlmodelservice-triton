@@ -39,7 +39,7 @@ jobs:
     strategy:
       matrix:
         platform: [arm64]
-    runs-on: buildjet-8vcpu-ubuntu-2204-arm
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
     - name: build
