@@ -11,9 +11,9 @@ This module is still under active development.
 
 ## Prerequisites
 
-- An NVidia Jetson Orin board.
+- An NVidia Jetson Orin board with Jetpack 5 installed.
 
-## Build and Install
+## Install
 
 - Ensure that the NVidia Container Runtime is installed: `sudo apt-get
   install nvidia-container`. Note that `nvidia-container` is part of
@@ -21,29 +21,10 @@ This module is still under active development.
   probably already have this. But it is worth running the above
   command to make sure!
 
-- Clone this repository to any location on the system where you intend
-  to run inference.
-
-- Build the docker image `docker build . -t viam-mlmodelservice-triton
-  -f etc/docker/Dockerfile.triton-jetpack-focal`
-    - NOTE: When this module is available in
-   the module registry, this step will be unncessary.
-    - NOTE: The image name currently *must* be
-   `viam-mlmodelservice-triton`. This restriction will be lifted in
-   the future once the Docker image is published to
-   [GHCR](https://ghcr.io).
-
 ## Registering the Module with a Robot
 
-In your robot configuration on [app.viam.com](app.viam.com), navigate
-to the `Config/Modules` card and create a new module. The name of the
-module does not particularly matter, but for the purposes of this
-README it will be called `viam-mlmodelservice-triton-module`. Set the
-`Executable Path` for the module to be result of running `realpath
-bin/viam-mlmodelservice-triton.sh` from the root of your checkout.
-
-NOTE: When this module is available in the module registry, this step
-will be unnecessary / simplified.
+Follow the instructions to [add a modular service to your robot](https://docs.viam.com/extend/modular-resources/configure/#add-a-modular-service-from-the-viam-registry), 
+and search for "triton", then select the version from the Registry.
 
 ## Creating a Model Respository
 
