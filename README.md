@@ -11,7 +11,7 @@ This module is still under active development.
 
 ## Prerequisites
 
-- An NVidia Jetson Orin board with Jetpack 5 installed.
+- An NVidia Jetson Orin board with Jetpack 5 installed. Note that use of an NVMe SSD is *strongly* recommended over using an SD card.
 
 ## Install
 
