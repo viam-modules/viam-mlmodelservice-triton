@@ -3,7 +3,8 @@
 ## Intro
 
 A Viam MLModelService resource backed by Nvidia's [Triton
-Server](https://developer.nvidia.com/triton-inference-server). You can read a [tutorial on how to set it up](https://docs.viam.com/modular-resources/examples/triton/) on the Viam docs site.
+Server](https://developer.nvidia.com/triton-inference-server). 
+You can read a [tutorial on how to set it up](https://docs.viam.com/modular-resources/examples/triton/) on the Viam docs site.
 
 ## (In)-stability Notice
 
