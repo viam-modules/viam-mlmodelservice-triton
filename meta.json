@@ -1,5 +1,5 @@
 {
-  "name": "viam:mlmodelservice-triton-jetpack",
+  "module_id": "viam:mlmodelservice-triton-jetpack",
   "visibility": "public",
   "url": "https://github.com/viamrobotics/viam-mlmodelservice-triton",
   "description": "Viam Triton Inference Server Module for Jetpack",
