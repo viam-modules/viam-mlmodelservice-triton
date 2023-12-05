@@ -83,6 +83,11 @@ Currently, you must manually create a Triton [model repository](https://docs.nvi
 On your robot's Jetson computer, create a [structured repository](https://docs.nvidia.com/deeplearning/triton-inference-server/user-guide/docs/user_guide/model_repository.html) under the `~/.viam` directory.
 The exact subpath under `~/.viam` does not matter.
 
+> [!NOTE]
+> Where you place your model repository depends on the `.viam` directory where the cloud config file is located.
+> 
+> You may need to place the model repository in the `/root/.viam` directory for it to work properly, depending on the `.viam` directory you are running from. If you encounter any issues, consider trying the `/root/.viam` directory as an alternative location.
+
 For example, after unpacking the module, to add the [EfficientDet-Lite4 Object Detection](https://tfhub.dev/tensorflow/efficientdet/lite4/detection/2) model, place the model repository under `~/.viam/triton/repository`:
 
 ```sh { class="command-line" data-prompt="$"}
