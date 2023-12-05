@@ -55,22 +55,65 @@ Switch to **Raw JSON** mode and add the following to your `"modules"` array:
 
 Replace the value of the "version" field with the value you determined above with the docker pull command.
 
-Add the following to your `"modules"` array:
+Add the following to your `"services"` array:
 
 ```json
 {
-  "type": "registry",
-  "name": "viam_mlmodelservice-triton-jetpack",
-  "module_id": "viam:mlmodelservice-triton-jetpack",
-  "version": "0.4.0"
+ "name": "my-triton-module",
+  "type": "mlmodel",
+  "namespace": "rdk",
+  "model": "viam:mlmodelservice:triton"
 }
 ```
+
+The model will now be configured with a card like the following:
+
+![The triton service card in the Viam app config builder, showing deployment options.](https://docs.viam.com/registry/triton/triton-config-builder.png)
+
+Note that the parameters shown, `"model_path"`, `"label_path"`, and `"num_threads"` are not applicable for this module, and should be left blank.
+Ignore this card's interface and move to [creating a model repository](#create-a-repository-to-store-the-ml-model-to-deploy).
 
 > [!NOTE]  
 > For more information, see [Configure a Robot](https://docs.viam.com/manage/configuration/).
 
+
+### Create a repository to store the ML model to deploy
+
+Currently, you must manually create a Triton [model repository](https://docs.nvidia.com/deeplearning/triton-inference-server/user-guide/docs/user_guide/model_repository.html).
+On your robot's Jetson computer, create a [structured repository](https://docs.nvidia.com/deeplearning/triton-inference-server/user-guide/docs/user_guide/model_repository.html) under the `~/.viam` directory.
+The exact subpath under `~/.viam` does not matter.
+
+> [!NOTE]
+> Where you should place your model repository depends on the `.viam` directory where the cloud config file is located.
+> 
+> You may need to place the model repository in the `/root/.viam` directory for it to work properly, depending on the `.viam` directory you are running from. If you encounter any issues, consider trying the `/root/.viam` directory as an alternative location.
+
+For example, after unpacking the module, to add the [EfficientDet-Lite4 Object Detection](https://tfhub.dev/tensorflow/efficientdet/lite4/detection/2) model, place the model repository under `~/.viam/triton/repository`:
+
+```sh { class="command-line" data-prompt="$"}
+$ tree ~/.viam
+~/.viam
+├── cached_cloud_config_05536cf6-f8a6-464f-b05c-bf1e57e9d1d9.json
+└── triton
+    └── repository
+        └── efficientdet-lite4-detection
+            ├── 1
+            │   └── model.savedmodel
+            │       ├── saved_model.pb
+            │       └── variables
+            │           ├── variables.data-00000-of-00001
+            │           └── variables.index
+            └── config.pbext
+```
+
+The `config.pbext` file must exist, but at least for TensorFlow models it can be empty.
+For other types of models, please consult the [Triton Server model repository documentation](https://docs.nvidia.com/deeplearning/triton-inference-server/user-guide/docs/user_guide/model_repository.html) for details on the correct contents of the `config.pbext` file.
+The version here is `1` but it can be any positive integer.
+Newer versions will be preferred by default.
+
 ### Attributes
 
+After creating your model repository, configure the required attributes to deploy your model on your robot.
 The following attributes are available for the MLModel service `viam:mlmodelservice:triton`:
 
 | Name | Type | Inclusion | Description |
