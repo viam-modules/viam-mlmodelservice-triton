@@ -84,7 +84,7 @@ On your robot's Jetson computer, create a [structured repository](https://docs.n
 The exact subpath under `~/.viam` does not matter.
 
 > [!NOTE]
-> Where you place your model repository depends on the `.viam` directory where the cloud config file is located.
+> Where you should place your model repository depends on the `.viam` directory where the cloud config file is located.
 > 
 > You may need to place the model repository in the `/root/.viam` directory for it to work properly, depending on the `.viam` directory you are running from. If you encounter any issues, consider trying the `/root/.viam` directory as an alternative location.
 
