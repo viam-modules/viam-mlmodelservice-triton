@@ -66,10 +66,6 @@ Add the following to your `"services"` array:
 }
 ```
 
-The model will now be configured with a card like the following:
-
-![The triton service card in the Viam app config builder, showing deployment options.](https://docs.viam.com/registry/triton/triton-config-builder.png)
-
 Note that the parameters shown, `"model_path"`, `"label_path"`, and `"num_threads"` are not applicable for this module, and should be left blank.
 Ignore this card's interface and move to [creating a model repository](#create-a-repository-to-store-the-ml-model-to-deploy).
 
