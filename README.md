@@ -1,7 +1,6 @@
 # Viam Triton ML Model Service
 
-A Viam provided ML Model service backed by NVIDIA's [Triton Inference
-Server](https://developer.nvidia.com/triton-inference-server).
+A Viam provided ML Model service backed by NVIDIA's [Triton Inference Server](https://developer.nvidia.com/triton-inference-server).
 Configure this ML Model service as a modular resource on your robot with a [Jetson board](https://docs.viam.com/build/configure/components/board/jetson/) to deploy TensorFlow or PyTorch ML models to your machine faster while consuming less computer power.
 
 > [!Note]
