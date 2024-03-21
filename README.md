@@ -1,8 +1,11 @@
-# Viam Triton MLModel Service
+# Viam Triton ML Model Service
 
-A Viam provided MLModel service resource module backed by NVIDIA's [Triton Inference
+A Viam provided ML Model service backed by NVIDIA's [Triton Inference
 Server](https://developer.nvidia.com/triton-inference-server).
-Configure this MLModel service as a modular resource on your robot with a [Jetson board](https://docs.viam.com/build/configure/components/board/jetson/) to deploy MLModels to your robot faster while consuming less computer power.
+Configure this ML Model service as a modular resource on your robot with a [Jetson board](https://docs.viam.com/build/configure/components/board/jetson/) to deploy TensorFlow or PyTorch ML models to your machine faster while consuming less computer power.
+
+> [!Note]
+>For more information, see the [ML Model service documentation](/ml/deploy/)
 
 ## Requirements
 
@@ -31,18 +34,22 @@ Then, if you haven't done so already, create a new robot in [the Viam app](https
 
 ## Build and Run
 
-To use this module, follow these instructions to [add a module from the Viam Registry](https://docs.viam.com/registry/configure/#add-a-modular-resource-from-the-viam-registry) and select the `mlmodelservice:triton` model from the `mlmodelservice-triton-jetpack` module.
+To use this module on your machine, follow these instructions:
 
-## Configure your Triton MLModel Service
+## Configure your Triton ML Model Service
 
 > [!Note]
-> Before configuring your MLModel service module, you must [create a robot](https://docs.viam.com/manage/fleet/robots/#add-a-new-robot).
+> Before configuring your ML Model service module, you must [create a robot](https://docs.viam.com/manage/fleet/robots/#add-a-new-robot).
 
 Navigate to the **Config** tab of your robot’s page in [the Viam app](https://app.viam.com/).
 Click on the **Services** subtab and click **Create service**.
-Select **ML Model**, then search for the `mlmodelservice:triton` model. Give your resource a name of your choice and click **Create**.
+Select **ML Model**, then search for the `mlmodelservice:triton` model.
+Click **Add module**.
+Give your resource a name of your choice and click **Create**. 
 
-Switch to **Raw JSON** mode and add the following to your `"modules"` array:
+First, make sure your module version is correct.
+Select **Raw JSON** mode.
+Your `"modules"` array should appear like the following:
 
 ```json
 {
@@ -52,26 +59,20 @@ Switch to **Raw JSON** mode and add the following to your `"modules"` array:
   "version": "0.4.0"
 }
 ```
-
 Replace the value of the "version" field with the value you determined above with the docker pull command.
-
-Add the following to your `"services"` array:
-
-```json
-{
- "name": "my-triton-module",
-  "type": "mlmodel",
-  "namespace": "rdk",
-  "model": "viam:mlmodelservice:triton"
-}
-```
-
-Note that the parameters shown, `"model_path"`, `"label_path"`, and `"num_threads"` are not applicable for this module, and should be left blank.
-Ignore this card's interface and move to [creating a model repository](#create-a-repository-to-store-the-ml-model-to-deploy).
+Save your config.
 
 > [!NOTE]  
 > For more information, see [Configure a Robot](https://docs.viam.com/manage/configuration/).
 
+Now, to configure your machine's **Attributes**, you have two options.
+You can use a TensorFlow or PyTorch model from the [Registry](https://app.viam.com/registry), or you can load an existing TensorFlow or PyTorch model on your machine.
+To deploy a model from the Registry, navigate back to the **Config** tab of your machine in the Viam app and switch back to **Builder** mode.
+Click on the **Select ML model** field and select a model from the dropdown that appears.
+Your ML model service will automatically be configured with this model.
+You can explore the available models in the [Registry](https://app.viam.com/registry).
+
+To deploy an existing model on your machine, you must first [create a model repository](#create-a-repository-to-store-the-ml-model-to-deploy) on your machine:
 
 ### Create a repository to store the ML model to deploy
 
@@ -107,9 +108,12 @@ For other types of models, please consult the [Triton Server model repository do
 The version here is `1` but it can be any positive integer.
 Newer versions will be preferred by default.
 
+After creating your model repository, configure the required attributes to deploy your model on your robot.
+Navigate back to the **Config** tab of your machine in the Viam app.
+Fill in the required **Attributes** to deploy the model:
+
 ### Attributes
 
-After creating your model repository, configure the required attributes to deploy your model on your robot.
 The following attributes are available for the MLModel service `viam:mlmodelservice:triton`:
 
 | Name | Type | Inclusion | Description |
@@ -139,8 +143,6 @@ An example minimal configuration would look like this, within your robot’s "se
 ```
 
 An example detailed configuration with optional parameters specified would look like this:
-
-
 
 ```json {class="line-numbers linkable-line-numbers"}
 {
