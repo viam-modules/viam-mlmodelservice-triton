@@ -123,6 +123,6 @@ int main(int argc, char* argv[]) {
         return EXIT_FAILURE;
     }
 
-    return reinterpret_cast<int (*)(cxxapi::shim*, const char*)>(lvmti_serve)(&cxxapi::the_shim,
-                                                                              argv[1]);
+    return reinterpret_cast<int (*)(cxxapi::shim*, int, char*[])>(lvmti_serve)(
+        &cxxapi::the_shim, argc, argv);
 }

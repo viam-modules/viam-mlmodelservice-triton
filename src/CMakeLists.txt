@@ -21,7 +21,7 @@ endif()
 target_include_directories(viam_mlmodelservice_triton_impl
   # TODO: When Triton SDK docker images are available, we should look
   # up TritonServer with `find_package`.
-  PRIVATE ${VIAM_MLMODELSERVICE_TRITON_TRITONSERVER_ROOT}/include/tritonserver
+  PRIVATE ${VIAM_MLMODELSERVICE_TRITON_TRITONSERVER_ROOT}/include
   PRIVATE ${RAPIDJSON_INCLUDE_DIRS}
 )
 
@@ -42,7 +42,7 @@ target_sources(viam_mlmodelservice_triton
 )
 
 target_include_directories(viam_mlmodelservice_triton
-  PRIVATE ${VIAM_MLMODELSERVICE_TRITON_TRITONSERVER_ROOT}/include/tritonserver
+  PRIVATE ${VIAM_MLMODELSERVICE_TRITON_TRITONSERVER_ROOT}/include
 )
 
 target_link_directories(viam_mlmodelservice_triton

@@ -1,102 +1,104 @@
 FROM ubuntu:focal AS base
-
 ARG DEBIAN_FRONTEND=noninteractive
-
-RUN apt-get -y update
-RUN apt-get -y dist-upgrade
 
 # Add components needed for apt-key / apt-add-repository, since
 # we need to have the JetPack repo available for both build and runtime
 #
 # Also sudo, since both jetpack installation postinsts and the runtime
 # need it.
-RUN apt-get -y --no-install-recommends install \
+RUN apt-get -y update && apt-get -y dist-upgrade && apt-get -y --no-install-recommends install \
     ca-certificates \
     gnupg \
     sudo
 
 RUN apt-key adv --fetch-key http://repo.download.nvidia.com/jetson/jetson-ota-public.asc
-RUN echo 'deb https://repo.download.nvidia.com/jetson/common r35.4 main' > /etc/apt/sources.list.d/nvidia-jetson.list
-RUN apt-get -y update
+RUN echo 'deb https://repo.download.nvidia.com/jetson/common r35.5 main' > /etc/apt/sources.list.d/nvidia-jetson.list
 
 
 FROM base AS runtime
-
 ARG DEBIAN_FRONTEND=noninteractive
-
-# Runtime for gRPC and friends
-RUN apt-get -y --no-install-recommends install \
-    libc-ares2 \
-    libre2-5 \
-    libssl1.1 \
-    zlib1g
 
 # Hack to get PVA stuff to install
 RUN mkdir -p /lib/firmware
 
-# Runtime components of JetPack that we need
-RUN apt-get -y --no-install-recommends install \
+# Install packages for runtime for:
+# - gRPC and friends
+# - Components of JetPack that we need
+# - Triton Server, mod above. See https://docs.nvidia.com/deeplearning/triton-inference-server/user-guide/docs/user_guide/jetson.html#runtime-dependencies-for-triton
+# - Viam SDK
+# - Fast memory allocation for our program with JeMalloc
+#
+RUN apt-get -y update && apt-get -y --no-install-recommends install \
+    libc-ares2 \
+    libre2-5 \
+    libssl1.1 \
+    zlib1g \
+    \
     cuda-nvtx-11-4 \
     nvidia-cuda \
     nvidia-cudnn8 \
     nvidia-cupva \
     nvidia-opencv \
     nvidia-tensorrt \
-    nvidia-vpi
-
-# Runtime for Triton Server, mod above. See
-# https://docs.nvidia.com/deeplearning/triton-inference-server/user-guide/docs/user_guide/jetson.html#runtime-dependencies-for-triton
-RUN apt-get install -y --no-install-recommends \
+    nvidia-vpi \
+    \
     libarchive13 \
     libb64-0d \
     libopenblas0 \
     python3 \
-    python3-pip
-
-# Needed for Viam SDK
-RUN apt-get install -y --no-install-recommends \
-    libboost-log1.71.0
-
-# We like this for memory allocation for our program
-RUN apt-get install -y --no-install-recommends \
+    python3-pip \
+    \
+    libboost-log1.71.0 \
+    \
     libjemalloc2
 
 
-FROM base AS build
-
+# Make a build-deps layer so we can get this locked in even
+# if there are problems building the module itself. Some of the tasks here
+# like building grpc, the C++ SDK, and downloading the triton runtime
+# are expensive, and it is unfortunate to need to re-execute them if
+# just the Viam triton server build itself fails.
+FROM base AS build-deps
 ARG DEBIAN_FRONTEND=noninteractive
 ENV HOME /root
 
-# Configure a basic build environment
-RUN apt-get -y --no-install-recommends install \
-    build-essential \
-    g++ \
-    git \
-    ninja-build \
-    pkg-config
+# Create directories we will use
+RUN mkdir -p ${HOME}/opt/src /opt/tritonserver
 
 # Add public key and repository to get cmake 3.25+
 RUN apt-key adv --fetch-key https://apt.kitware.com/keys/kitware-archive-latest.asc
 RUN echo 'deb https://apt.kitware.com/ubuntu/ focal main' > /etc/apt/sources.list.d/kitware.list
-RUN apt-get -y update
-RUN apt-get -y --no-install-recommends install \
-    cmake
 
-# Build grpc (and proto, etc.) from source, since we don't have a good version on focal
-
-RUN apt-get -y --no-install-recommends install \
+# Install packages for:
+# - A basic build environment
+# - Prereqs for building grpc/proto, etc
+# - Prereqs for building the Viam C++ SDK
+# - Prereqs for building the module against Triton Server
+#
+RUN apt-get -y update && apt-get -y --no-install-recommends install \
+    build-essential \
+    cmake \
+    g++ \
+    git \
+    ninja-build \
+    pkg-config \
+    \
     libc-ares-dev \
     libre2-dev \
     libssl-dev \
-    zlib1g-dev
+    zlib1g-dev \
+    \
+    libboost-all-dev \
+    \
+    curl \
+    nvidia-cuda-dev \
+    rapidjson-dev
 
-RUN mkdir -p ${HOME}/opt/src
+# Build grpc (and proto, etc.) from source, since we don't have a good version on focal
 RUN cd ${HOME}/opt/src && \
     git clone --recurse-submodules -b v1.52.0 --depth 1 --shallow-submodules https://github.com/grpc/grpc && \
     cd grpc && \
-    mkdir -p build && \
-    cd build && \
-    cmake .. -G Ninja \
+    cmake -S . -B build -G Ninja \
         -DgRPC_CARES_PROVIDER=package \
         -DgRPC_RE2_PROVIDER=package \
         -DgRPC_SSL_PROVIDER=package \
@@ -104,35 +106,27 @@ RUN cd ${HOME}/opt/src && \
         -DgRPC_INSTALL=ON \
         -DgRPC_BUILD_TESTS=OFF \
         -DBUILD_SHARED_LIBS=ON \
-        -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-        -DCMAKE_INSTALL_PREFIX=/opt/viam \
-        -DCMAKE_INSTALL_RPATH=/opt/viam/lib && \
-    ninja -j3 install
+        -DCMAKE_INSTALL_RPATH=/opt/viam/lib \
+        -DCMAKE_BUILD_TYPE=RelWithDebInfo && \
+    cmake --build build --target install -j3 -- -v && \
+    cmake --install build --prefix /opt/viam
 
 # Clone, build, and install the viam-cpp-sdk repo
-RUN apt-get -y --no-install-recommends install \
-    libboost-all-dev
-
 RUN cd ${HOME}/opt/src && \
-    git clone https://github.com/viamrobotics/viam-cpp-sdk.git && \
+    git clone https://github.com/viamrobotics/viam-cpp-sdk.git -b releases/v0.0.7 && \
     cd viam-cpp-sdk && \
     cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_PREFIX_PATH=/opt/viam && \
     PATH=/opt/viam/bin:$PATH cmake --build build --target install -j3 -- -v && \
     cmake --install build --prefix /opt/viam
 
-# Install the prerequisites for building the module against Triton Server
-RUN apt-get install -y --no-install-recommends \
-    nvidia-cuda-dev \
-    rapidjson-dev
-
-RUN apt-get install -y --no-install-recommends \
-    curl
-
 # Download and install the jetpack build of TritonServer and install it to /opt/tritonserver
-RUN curl -L https://github.com/triton-inference-server/server/releases/download/v2.35.0/tritonserver2.35.0-jetpack5.1.2.tgz | tar xfz - -C /opt
-
+RUN curl -L https://github.com/triton-inference-server/server/releases/download/v2.34.0/tritonserver2.34.0-jetpack5.1.tgz | tar xfz - -C /opt/tritonserver
 # Fixup inconsistent permissions issues in triton tarball
 RUN chmod -R oug+rX /opt/tritonserver/
+
+
+FROM build-deps AS build
+ARG DEBIAN_FRONTEND=noninteractive
 
 # Build and install the Viam Triton MLModelService from our
 # local state against the C++ SDK and Triton Server
@@ -140,7 +134,7 @@ ADD . ${HOME}/opt/src/viam-mlmodelservice-triton
 RUN \
     cd ${HOME}/opt/src/viam-mlmodelservice-triton && \
     cmake -S . -B build -G Ninja \
-      -DVIAM_MLMODELSERVICE_TRITON_TRITONSERVER_ROOT=/opt/tritonserver \
+      -DVIAM_MLMODELSERVICE_TRITON_TRITONSERVER_ROOT=/opt/tritonserver/tritonserver \
       -DCMAKE_BUILD_TYPE=RelWithDebInfo \
       -DCMAKE_PREFIX_PATH=/opt/viam && \
     cmake --build build --target install -- -v && \
@@ -148,7 +142,6 @@ RUN \
 
 
 FROM runtime AS deploy
-
 ARG DEBIAN_FRONTEND=noninteractive
 
 COPY --from=build /opt/viam /opt/viam

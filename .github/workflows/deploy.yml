@@ -34,8 +34,6 @@ jobs:
         file: etc/docker/Dockerfile.triton-jetpack-focal
   module:
     needs: [container]
-    # todo: remove concurrency group once APP-2549 is fixed
-    concurrency: no-simultaneous-upload-${{ github.ref_name }}-${{ github.run_number }}
     strategy:
       matrix:
         platform: [arm64]
@@ -45,7 +43,7 @@ jobs:
     - name: build
       run: |
         TAG=$DOCKER_TAG:$VERSION make -f Makefile.module module.tar.gz
-    - uses: viamrobotics/upload-module@main
+    - uses: viamrobotics/upload-module@v1
       if: github.event_name == 'release'
       with:
         module-path: module.tar.gz

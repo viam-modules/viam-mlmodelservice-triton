@@ -39,9 +39,10 @@
 #include <viam/sdk/config/resource.hpp>
 #include <viam/sdk/module/service.hpp>
 #include <viam/sdk/registry/registry.hpp>
+#include <viam/sdk/resource/reconfigurable.hpp>
+#include <viam/sdk/resource/stoppable.hpp>
 #include <viam/sdk/rpc/server.hpp>
-#include <viam/sdk/services/mlmodel/mlmodel.hpp>
-#include <viam/sdk/services/mlmodel/server.hpp>
+#include <viam/sdk/services/mlmodel.hpp>
 
 #include "viam_mlmodelservice_triton.hpp"
 
@@ -71,7 +72,17 @@ auto call_cuda(cudaError_t (*fn)(Args... args)) noexcept {
 // Please see
 // https://github.com/viamrobotics/viam-mlmodelservice-triton/blob/main/README.md
 // for configuration parameters and deployment guidelines.
-class Service : public vsdk::MLModelService {
+//
+// NOTE: At one time, `MLModelService` required implementation of
+// `Stoppable`/`Reconfigurable`, so this class implemented the
+// necessary behaviors. Later, the C++ SDK was refactored such that
+// `MLModelService` implementations no longer automatically derived
+// from `Stoppable` and `Reconfigurable`. It would have been possible
+// to remove the supporting code from `Server`. However, is seems
+// better to retain it, in case support is ever needed again. So,
+// `Service` here explicitly derives from `Stoppable` and
+// `Reconfigurable`, but in practice those methods are unreachable.
+class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk::Reconfigurable {
    public:
     explicit Service(vsdk::Dependencies dependencies, vsdk::ResourceConfig configuration)
         : MLModelService(configuration.name()),
@@ -84,7 +95,7 @@ class Service : public vsdk::MLModelService {
         // drain.
     }
 
-    grpc::StatusCode stop(const vsdk::AttributeMap& extra) noexcept final {
+    void stop(const vsdk::AttributeMap& extra) noexcept final {
         using std::swap;
         try {
             std::lock_guard<std::mutex> lock(state_lock_);
@@ -96,12 +107,11 @@ class Service : public vsdk::MLModelService {
             }
         } catch (...) {
         }
-        return grpc::StatusCode::OK;
     }
-    using MLModelService::stop;
+    using Stoppable::stop;
 
-    void reconfigure(vsdk::Dependencies dependencies, vsdk::ResourceConfig configuration) final
-        try {
+    void reconfigure(const vsdk::Dependencies& dependencies,
+                     const vsdk::ResourceConfig& configuration) final try {
         // Care needs to be taken during reconfiguration. The
         // framework does not offer protection against invocation
         // during reconfiguration. Keep all state in a shared_ptr
@@ -1165,14 +1175,7 @@ class Service : public vsdk::MLModelService {
     bool stopped_ = false;
 };
 
-int serve(const std::string& socket_path) noexcept try {
-    // Block the signals we intend to wait for synchronously.
-    sigset_t sigset;
-    sigemptyset(&sigset);
-    sigaddset(&sigset, SIGINT);
-    sigaddset(&sigset, SIGTERM);
-    pthread_sigmask(SIG_BLOCK, &sigset, NULL);
-
+int serve(int argc, char* argv[]) noexcept try {
     // Validate that the version of the triton server that we are
     // running against is sufficient w.r..t the version we were built
     // against.
@@ -1193,12 +1196,8 @@ int serve(const std::string& socket_path) noexcept try {
 
     // Create a new model registration for the service.
     auto module_registration = std::make_shared<vsdk::ModelRegistration>(
-        // TODO(RSDK-2417): This field is deprecated, just provide some
-        // quasi-relevant string value here for now.
-        vsdk::ResourceType{"MLModelServiceTritonModule"},
-
         // Identify that this resource offers the MLModelService API
-        vsdk::MLModelService::static_api(),
+        vsdk::API::get<vsdk::MLModelService>(),
 
         // Declare a model triple for this service.
         vsdk::Model{"viam", "mlmodelservice", "triton"},
@@ -1208,38 +1207,10 @@ int serve(const std::string& socket_path) noexcept try {
             return std::make_shared<Service>(std::move(deps), std::move(config));
         });
 
-    // Register the newly created registration with the Registry.
-    vsdk::Registry::register_model(module_registration);
-
     // Construct the module service and tell it where to place the socket path.
-    auto module_service = std::make_shared<vsdk::ModuleService_>(socket_path);
-
-    // Construct a new Server object.
-    auto server = std::make_shared<vsdk::Server>();
-
-    // Add the server as providing the API and model declared in the
-    // registration.
-    module_service->add_model_from_registry(
-        server, module_registration->api(), module_registration->model());
-
-    // Start the module service.
-    module_service->start(server);
-
-    // Create a thread which will start the server, await one of the
-    // blocked signals, and then gracefully shut down the server.
-    std::thread server_thread([&server, &sigset]() {
-        server->start();
-        int sig = 0;
-        auto result = sigwait(&sigset, &sig);
-        server->shutdown();
-    });
-
-    // The main thread waits for the server thread to indicate that
-    // the server shutdown has completed.
-    server->wait();
-
-    // Wait for the server thread to exit.
-    server_thread.join();
+    std::vector<std::shared_ptr<vsdk::ModelRegistration>> mrs = {module_registration};
+    auto module_service = std::make_shared<vsdk::ModuleService>(argc, argv, mrs);
+    module_service->serve();
 
     return EXIT_SUCCESS;
 } catch (const std::exception& ex) {
@@ -1259,7 +1230,7 @@ namespace {
 namespace vmt = viam::mlmodelservice::triton;
 }  // namespace
 
-extern "C" int viam_mlmodelservice_triton_serve(vmt::cxxapi::shim* shim, const char* sock) {
+extern "C" int viam_mlmodelservice_triton_serve(vmt::cxxapi::shim* shim, int argc, char* argv[]) {
     vmt::cxxapi::the_shim = *shim;
-    return vmt::serve(sock);
+    return vmt::serve(argc, argv);
 }
