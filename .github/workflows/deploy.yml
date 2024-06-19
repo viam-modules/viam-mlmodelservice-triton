@@ -1,7 +1,7 @@
 on:
   push:
   release:
-    types: [released]
+    types: [published]
 
 env:
   DOCKER_TAG: ghcr.io/${{ github.repository }}
