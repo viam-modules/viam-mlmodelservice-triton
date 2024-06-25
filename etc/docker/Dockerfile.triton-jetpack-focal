@@ -96,7 +96,7 @@ RUN apt-get -y update && apt-get -y --no-install-recommends install \
 
 # Build grpc (and proto, etc.) from source, since we don't have a good version on focal
 RUN cd ${HOME}/opt/src && \
-    git clone --recurse-submodules -b v1.52.0 --depth 1 --shallow-submodules https://github.com/grpc/grpc && \
+    git clone --recurse-submodules -b v1.64.2 --depth 1 --shallow-submodules https://github.com/grpc/grpc && \
     cd grpc && \
     cmake -S . -B build -G Ninja \
         -DgRPC_CARES_PROVIDER=package \
@@ -113,7 +113,7 @@ RUN cd ${HOME}/opt/src && \
 
 # Clone, build, and install the viam-cpp-sdk repo
 RUN cd ${HOME}/opt/src && \
-    git clone https://github.com/viamrobotics/viam-cpp-sdk.git -b releases/v0.0.7 && \
+    git clone https://github.com/viamrobotics/viam-cpp-sdk.git -b releases/v0.0.8 && \
     cd viam-cpp-sdk && \
     cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_PREFIX_PATH=/opt/viam && \
     PATH=/opt/viam/bin:$PATH cmake --build build --target install -j3 -- -v && \
