@@ -1,5 +1,5 @@
 FROM ubuntu:focal AS base
-ARG DEBIAN_FRONTEND=noninteractive
+ENV DEBIAN_FRONTEND=noninteractive
 
 # Add components needed for apt-key / apt-add-repository, since
 # we need to have the JetPack repo available for both build and runtime
@@ -16,7 +16,7 @@ RUN echo 'deb https://repo.download.nvidia.com/jetson/common r35.5 main' > /etc/
 
 
 FROM base AS runtime
-ARG DEBIAN_FRONTEND=noninteractive
+ENV DEBIAN_FRONTEND=noninteractive
 
 # Hack to get PVA stuff to install
 RUN mkdir -p /lib/firmware
@@ -59,7 +59,7 @@ RUN apt-get -y update && apt-get -y --no-install-recommends install \
 # are expensive, and it is unfortunate to need to re-execute them if
 # just the Viam triton server build itself fails.
 FROM base AS build-deps
-ARG DEBIAN_FRONTEND=noninteractive
+ENV DEBIAN_FRONTEND=noninteractive
 ENV HOME=/root
 
 # Create directories we will use
@@ -126,7 +126,7 @@ RUN chmod -R oug+rX /opt/tritonserver/
 
 
 FROM build-deps AS build
-ARG DEBIAN_FRONTEND=noninteractive
+ENV DEBIAN_FRONTEND=noninteractive
 
 # Build and install the Viam Triton MLModelService from our
 # local state against the C++ SDK and Triton Server
@@ -142,7 +142,7 @@ RUN \
 
 
 FROM runtime AS deploy
-ARG DEBIAN_FRONTEND=noninteractive
+ENV DEBIAN_FRONTEND=noninteractive
 
 COPY --from=build /opt/viam /opt/viam
 COPY --from=build /opt/tritonserver /opt/tritonserver

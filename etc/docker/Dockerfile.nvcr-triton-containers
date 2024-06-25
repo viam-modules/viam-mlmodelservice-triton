@@ -1,0 +1,78 @@
+ARG TRITON_VERSION=24.06
+ARG JETPACK
+
+FROM nvcr.io/nvidia/tritonserver:${TRITON_VERSION}-py3${JETPACK:+-igpu}-sdk AS nvidia-triton-build-base
+FROM nvcr.io/nvidia/tritonserver:${TRITON_VERSION}-py3${JETPACK:+-igpu} AS nvidia-triton-runtime-base
+
+FROM nvidia-triton-build-base AS build-deps
+ENV DEBIAN_FRONTEND=noninteractive
+ENV HOME=/root
+
+# Create directories we will use
+RUN mkdir -p ${HOME}/opt/src
+
+RUN apt-get -y update && apt-get -y --no-install-recommends install \
+    ca-certificates \
+    gnupg
+
+RUN apt-key adv --fetch-key https://apt.kitware.com/keys/kitware-archive-latest.asc
+RUN echo 'deb https://apt.kitware.com/ubuntu/ jammy main' > /etc/apt/sources.list.d/kitware.list
+
+RUN apt-get -y update && apt-get -y --no-install-recommends install \
+    cmake \
+    git \
+    libabsl-dev \
+    libboost-all-dev \
+    libgrpc++-dev \
+    libprotobuf-dev \
+    ninja-build \
+    protobuf-compiler \
+    protobuf-compiler-grpc \
+    rapidjson-dev
+
+# Clone, build, and install the viam-cpp-sdk repo
+RUN mkdir -p ${HOME}/opt/src
+RUN cd ${HOME}/opt/src && \
+    git clone https://github.com/viamrobotics/viam-cpp-sdk.git -b releases/v0.0.9 && \
+    cd viam-cpp-sdk && \
+    cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_PREFIX_PATH=/opt/viam && \
+    PATH=/opt/viam/bin:$PATH cmake --build build --target install -j3 -- -v && \
+    cmake --install build --prefix /opt/viam
+
+RUN mkdir -p /opt/tritonserver/include
+RUN ln -s /workspace/install/include/triton /opt/tritonserver/include/triton
+RUN ln -s /workspace/install/lib/stubs /opt/tritonserver/lib
+
+FROM build-deps AS build
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Build and install the Viam Triton MLModelService from our
+# local state against the C++ SDK and Triton Server
+ADD . ${HOME}/opt/src/viam-mlmodelservice-triton
+RUN \
+    cd ${HOME}/opt/src/viam-mlmodelservice-triton && \
+    cmake -S . -B build -G Ninja \
+      -DVIAM_MLMODELSERVICE_TRITON_TRITONSERVER_ROOT=/opt/tritonserver \
+      -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+      -DCMAKE_PREFIX_PATH=/opt/viam && \
+    cmake --build build --target install -- -v && \
+    cmake --install build --prefix /opt/viam
+
+
+FROM nvidia-triton-runtime-base AS runtime
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get -y update && apt-get -y --no-install-recommends install \
+    ca-certificates \
+    gnupg
+
+RUN apt-get -y update && apt-get -y --no-install-recommends install \
+    libboost-log1.74.0 \
+    libjemalloc2 \
+    libabsl20210324 \
+    libgrpc++1 \
+    libprotobuf23
+
+FROM runtime AS deploy
+ENV DEBIAN_FRONTEND=noninteractive
+COPY --from=build /opt/viam /opt/viam
