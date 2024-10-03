@@ -115,8 +115,12 @@ RUN cd ${HOME}/opt/src && \
 RUN cd ${HOME}/opt/src && \
     git clone https://github.com/viamrobotics/viam-cpp-sdk.git -b releases/v0.0.11 && \
     cd viam-cpp-sdk && \
-    cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_PREFIX_PATH=/opt/viam && \
-    PATH=/opt/viam/bin:$PATH cmake --build build --target install -j3 -- -v && \
+    cmake -S . -B build -G Ninja \
+      -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+      -DCMAKE_PREFIX_PATH=/opt/viam \
+      -DVIAMCPPSDK_BUILD_EXAMPLES=OFF \
+      -DVIAMCPPSDK_BUILD_TESTS=OFF && \
+    PATH=/opt/viam/bin:$PATH cmake --build build --target install -- -v && \
     cmake --install build --prefix /opt/viam
 
 # Download and install the jetpack build of TritonServer and install it to /opt/tritonserver
