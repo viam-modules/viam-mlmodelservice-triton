@@ -64,7 +64,8 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get -y update && apt-get -y --no-install-recommends install \
     ca-certificates \
-    gnupg
+    gnupg \
+    sudo
 
 RUN apt-get -y update && apt-get -y --no-install-recommends install \
     libboost-log1.74.0 \
