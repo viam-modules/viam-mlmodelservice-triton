@@ -1,4 +1,4 @@
-ARG TRITON_VERSION=24.06
+ARG TRITON_VERSION=24.09
 ARG JETPACK
 
 FROM nvcr.io/nvidia/tritonserver:${TRITON_VERSION}-py3${JETPACK:+-igpu}-sdk AS nvidia-triton-build-base
@@ -33,7 +33,7 @@ RUN apt-get -y update && apt-get -y --no-install-recommends install \
 # Clone, build, and install the viam-cpp-sdk repo
 RUN mkdir -p ${HOME}/opt/src
 RUN cd ${HOME}/opt/src && \
-    git clone https://github.com/viamrobotics/viam-cpp-sdk.git -b releases/v0.0.9 && \
+    git clone https://github.com/viamrobotics/viam-cpp-sdk.git -b releases/v0.0.11 && \
     cd viam-cpp-sdk && \
     cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_PREFIX_PATH=/opt/viam && \
     PATH=/opt/viam/bin:$PATH cmake --build build --target install -j3 -- -v && \
