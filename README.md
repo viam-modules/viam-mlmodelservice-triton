@@ -22,7 +22,7 @@ sudo apt-get install nvidia-jetpack nvidia-container
 Pull the triton module docker container:
 
 ```sh { class="command-line" data-prompt="$"}
-docker pull ghcr.io/viamrobotics/viam-mlmodelservice-triton:latest
+docker pull ghcr.io/viam-modules/viam-mlmodelservice-triton:latest
 ```
 
 Examine the output to find the exact tag associated with latest.
