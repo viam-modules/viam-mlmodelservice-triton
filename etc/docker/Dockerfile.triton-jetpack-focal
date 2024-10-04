@@ -1,5 +1,5 @@
 FROM ubuntu:focal AS base
-ARG DEBIAN_FRONTEND=noninteractive
+ENV DEBIAN_FRONTEND=noninteractive
 
 # Add components needed for apt-key / apt-add-repository, since
 # we need to have the JetPack repo available for both build and runtime
@@ -16,7 +16,7 @@ RUN echo 'deb https://repo.download.nvidia.com/jetson/common r35.5 main' > /etc/
 
 
 FROM base AS runtime
-ARG DEBIAN_FRONTEND=noninteractive
+ENV DEBIAN_FRONTEND=noninteractive
 
 # Hack to get PVA stuff to install
 RUN mkdir -p /lib/firmware
@@ -59,7 +59,7 @@ RUN apt-get -y update && apt-get -y --no-install-recommends install \
 # are expensive, and it is unfortunate to need to re-execute them if
 # just the Viam triton server build itself fails.
 FROM base AS build-deps
-ARG DEBIAN_FRONTEND=noninteractive
+ENV DEBIAN_FRONTEND=noninteractive
 ENV HOME=/root
 
 # Create directories we will use
@@ -96,7 +96,7 @@ RUN apt-get -y update && apt-get -y --no-install-recommends install \
 
 # Build grpc (and proto, etc.) from source, since we don't have a good version on focal
 RUN cd ${HOME}/opt/src && \
-    git clone --recurse-submodules -b v1.65.0 --depth 1 --shallow-submodules https://github.com/grpc/grpc && \
+    git clone --recurse-submodules -b v1.66.2 --depth 1 --shallow-submodules https://github.com/grpc/grpc && \
     cd grpc && \
     cmake -S . -B build -G Ninja \
         -DgRPC_CARES_PROVIDER=package \
@@ -113,10 +113,14 @@ RUN cd ${HOME}/opt/src && \
 
 # Clone, build, and install the viam-cpp-sdk repo
 RUN cd ${HOME}/opt/src && \
-    git clone https://github.com/viamrobotics/viam-cpp-sdk.git -b releases/v0.0.9 && \
+    git clone https://github.com/viamrobotics/viam-cpp-sdk.git -b releases/v0.0.11 && \
     cd viam-cpp-sdk && \
-    cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_PREFIX_PATH=/opt/viam && \
-    PATH=/opt/viam/bin:$PATH cmake --build build --target install -j3 -- -v && \
+    cmake -S . -B build -G Ninja \
+      -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+      -DCMAKE_PREFIX_PATH=/opt/viam \
+      -DVIAMCPPSDK_BUILD_EXAMPLES=OFF \
+      -DVIAMCPPSDK_BUILD_TESTS=OFF && \
+    PATH=/opt/viam/bin:$PATH cmake --build build --target install -- -v && \
     cmake --install build --prefix /opt/viam
 
 # Download and install the jetpack build of TritonServer and install it to /opt/tritonserver
@@ -126,7 +130,7 @@ RUN chmod -R oug+rX /opt/tritonserver/
 
 
 FROM build-deps AS build
-ARG DEBIAN_FRONTEND=noninteractive
+ENV DEBIAN_FRONTEND=noninteractive
 
 # Build and install the Viam Triton MLModelService from our
 # local state against the C++ SDK and Triton Server
@@ -142,7 +146,7 @@ RUN \
 
 
 FROM runtime AS deploy
-ARG DEBIAN_FRONTEND=noninteractive
+ENV DEBIAN_FRONTEND=noninteractive
 
 COPY --from=build /opt/viam /opt/viam
 COPY --from=build /opt/tritonserver /opt/tritonserver
