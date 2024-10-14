@@ -9,7 +9,26 @@ env:
 
 jobs:
   container:
-    runs-on: buildjet-8vcpu-ubuntu-2204-arm
+    strategy:
+      matrix:
+        build_target:
+          - name_suffix: jetpack5
+            dockerfile: Dockerfile.nvcr-triton-containers
+            build_args:
+            runs_on: buildjet-8vcpu-ubuntu-2204-arm
+          - name_suffix: jetpack6
+            dockerfile: Dockerfile.triton-jetpack-focal
+            build_args: --build-arg TRITON_VERSION=24.06 --build-arg JETPACK=1
+            runs_on: buildjet-8vcpu-ubuntu-2204-arm
+          - name_suffix: cuda_arm
+            dockerfile: Dockerfile.triton-jetpack-focal
+            build_args: --build-arg TRITON_VERSION=24.06
+            runs_on: buildjet-8vcpu-ubuntu-2204-arm
+          - name_suffix: cuda_x86
+            dockerfile: Dockerfile.triton-jetpack-focal
+            build_args: --build-arg TRITON_VERSION=24.06
+            runs_on: buildjet-8vcpu-ubuntu-2204-x86
+    runs-on: ${{ matrix.build_target.runs_on }}
     permissions:
       contents: read
       packages: write
@@ -27,16 +46,25 @@ jobs:
         password: ${{ secrets.GITHUB_TOKEN }}
     - uses: docker/build-push-action@v4
       with:
-        tags: ${{ env.DOCKER_TAG }}:${{ env.VERSION }},${{ env.DOCKER_TAG }}:latest
+        tags: ${{ env.DOCKER_TAG }}-${{ matrix.build_target.name_suffix}}:${{ env.VERSION }},${{ env.DOCKER_TAG }}-${{ matrix.build_target.name_suffix}}:latest
         pull: true
         platforms: linux/arm64
         push: ${{ github.event_name == 'release' }}
-        file: etc/docker/Dockerfile.triton-jetpack-focal
+        file: ${{ matrix.build_target.dockerfile }}
+        build-args: ${{ matrix.build_target.build_args }}
   module:
     needs: [container]
     strategy:
       matrix:
-        platform: [arm64]
+        platform:
+          - arch: arm64
+            make_target: jetpack5
+          - arch: arm64
+            make_target: jetpack6
+          - arch: arm64
+            make_target: cuda
+          - arch: x86
+            make_target: cuda
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
@@ -47,7 +75,7 @@ jobs:
       if: github.event_name == 'release'
       with:
         module-path: module.tar.gz
-        platform: linux/${{ matrix.platform }}
+        platform: linux/${{ matrix.platform.arch }}
         version: ${{ env.VERSION }}
         key-id: ${{ secrets.viam_key_id }}
         key-value: ${{ secrets.viam_key_value }}
