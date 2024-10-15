@@ -9,5 +9,5 @@
       "model": "viam:mlmodelservice:triton"
     }
   ],
-  "entrypoint": "viam-mlmodelservice-triton.sh"
+  "entrypoint": "viam-mlmodelservice-triton-cuda.sh"
 }
