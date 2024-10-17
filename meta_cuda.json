@@ -1,4 +1,5 @@
 {
+  "$schema": "https://dl.viam.dev/module.schema.json",
   "module_id": "viam:mlmodelservice-triton-cuda",
   "visibility": "public",
   "url": "https://github.com/viamrobotics/viam-mlmodelservice-triton",
