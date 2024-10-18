@@ -3,7 +3,7 @@
   "module_id": "viam:mlmodelservice-triton-cuda",
   "visibility": "public",
   "url": "https://github.com/viamrobotics/viam-mlmodelservice-triton",
-  "description": "Viam Triton Inference Server Module for Cuda",
+  "description": "Viam Triton Inference Server Module for CUDA",
   "models": [
     {
       "api": "rdk:service:mlmodel",
