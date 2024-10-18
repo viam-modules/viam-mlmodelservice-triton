@@ -59,16 +59,16 @@ jobs:
         platform:
           - arch: arm64
             docker_suffix: jetpack5
-            meta_path: meta.jetpack5.json
+            meta_path: etc/viam/meta_jetpack5.json
           - arch: arm64
             docker_suffix: jetpack6
-            meta_path: meta.jetpack6.json
+            meta_path: etc/viam/meta_jetpack6.json
           - arch: arm64
             docker_suffix: cuda_arm
-            meta_path: meta.cuda.json
+            meta_path: etc/viam/meta_cuda.json
           - arch: x86
             docker_suffix: cuda_x86
-            meta_path: meta.cuda.json
+            meta_path: etc/viam/meta_cuda.json
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
