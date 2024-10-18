@@ -13,19 +13,19 @@ jobs:
       matrix:
         build_target:
           - name_suffix: jetpack5
-            dockerfile: Dockerfile.nvcr-triton-containers
+            dockerfile: Dockerfile.triton-jetpack-focal
             build_args:
             runs_on: buildjet-8vcpu-ubuntu-2204-arm
           - name_suffix: jetpack6
-            dockerfile: Dockerfile.triton-jetpack-focal
+            dockerfile: Dockerfile.nvcr-triton-containers
             build_args: --build-arg TRITON_VERSION=24.06 --build-arg JETPACK=1
             runs_on: buildjet-8vcpu-ubuntu-2204-arm
           - name_suffix: cuda_arm
-            dockerfile: Dockerfile.triton-jetpack-focal
+            dockerfile: Dockerfile.nvcr-triton-containers
             build_args: --build-arg TRITON_VERSION=24.06
             runs_on: buildjet-8vcpu-ubuntu-2204-arm
           - name_suffix: cuda_x86
-            dockerfile: Dockerfile.triton-jetpack-focal
+            dockerfile: Dockerfile.nvcr-triton-containers
             build_args: --build-arg TRITON_VERSION=24.06
             runs_on: buildjet-8vcpu-ubuntu-2204-x86
     runs-on: ${{ matrix.build_target.runs_on }}
