@@ -12,19 +12,19 @@ jobs:
     strategy:
       matrix:
         build_target:
-          - name_suffix: jetpack5
+          - docker_suffix: jetpack5
             dockerfile: Dockerfile.triton-jetpack-focal
             build_args:
             runs_on: buildjet-8vcpu-ubuntu-2204-arm
-          - name_suffix: jetpack6
+          - docker_suffix: jetpack6
             dockerfile: Dockerfile.nvcr-triton-containers
             build_args: --build-arg JETPACK=1
             runs_on: buildjet-8vcpu-ubuntu-2204-arm
-          - name_suffix: cuda_arm
+          - docker_suffix: cuda12_arm
             dockerfile: Dockerfile.nvcr-triton-containers
             build_args:
             runs_on: buildjet-8vcpu-ubuntu-2204-arm
-          - name_suffix: cuda_x86
+          - docker_suffix: cuda12_x86
             dockerfile: Dockerfile.nvcr-triton-containers
             build_args:
             runs_on: buildjet-8vcpu-ubuntu-2204-x86
@@ -46,7 +46,7 @@ jobs:
         password: ${{ secrets.GITHUB_TOKEN }}
     - uses: docker/build-push-action@v4
       with:
-        tags: ${{ env.DOCKER_TAG }}/${{ matrix.build_target.name_suffix}}:${{ env.VERSION }},${{ env.DOCKER_TAG }}/${{ matrix.build_target.name_suffix}}:latest
+        tags: ${{ env.DOCKER_TAG }}/${{ matrix.build_target.docker_suffix}}:${{ env.VERSION }},${{ env.DOCKER_TAG }}/${{ matrix.build_target.docker_suffix}}:latest
         pull: true
         platforms: linux/arm64
         push: ${{ github.event_name == 'release' }}
@@ -64,10 +64,10 @@ jobs:
             docker_suffix: jetpack6
             meta_path: etc/viam/meta_jetpack6.json
           - arch: arm64
-            docker_suffix: cuda_arm
+            docker_suffix: cuda12_arm
             meta_path: etc/viam/meta_cuda.json
           - arch: x86
-            docker_suffix: cuda_x86
+            docker_suffix: cuda12_x86
             meta_path: etc/viam/meta_cuda.json
     runs-on: ubuntu-latest
     steps:
