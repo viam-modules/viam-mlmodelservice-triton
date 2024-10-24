@@ -50,7 +50,7 @@ jobs:
         pull: true
         platforms: linux/arm64
         push: ${{ github.event_name == 'release' }}
-        file: ${{ matrix.build_target.dockerfile }}
+        file: etc/docker/${{ matrix.build_target.dockerfile }}
         build-args: ${{ matrix.build_target.build_args }}
   module:
     needs: [container]
