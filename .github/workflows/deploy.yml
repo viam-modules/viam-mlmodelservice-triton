@@ -60,15 +60,19 @@ jobs:
           - arch: arm64
             docker_suffix: jetpack5
             meta_path: etc/viam/meta_jetpack5.json
+            tags: jetpack5,linux/arm
           - arch: arm64
             docker_suffix: jetpack6
             meta_path: etc/viam/meta_jetpack6.json
+            tags: jetpack6,linux/arm
           - arch: arm64
             docker_suffix: cuda12_arm
             meta_path: etc/viam/meta_cuda.json
+            tags: cuda,linux/arm
           - arch: x86
             docker_suffix: cuda12_x86
             meta_path: etc/viam/meta_cuda.json
+            tags: cuda,linux/x86
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
@@ -84,3 +88,4 @@ jobs:
         version: ${{ env.VERSION }}
         key-id: ${{ secrets.viam_key_id }}
         key-value: ${{ secrets.viam_key_value }}
+        tags: ${{ matrix.platform.tags }}
