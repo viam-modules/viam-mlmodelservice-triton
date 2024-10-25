@@ -1,10 +1,30 @@
-TAG ?= ghcr.io/USER/REPO:0.0.0
+URL ?= ghcr.io/USER/REPO
+SEMVER ?= 0.0.0
+TAG ?= $(URL)$(SUFFIX):$(SEMVER)
 
 %.sh: bin/%.sh.envsubst
 	cat $< | TAG=$(TAG) DOLLAR=$$ envsubst > $@
 	chmod +x $@
 
+# Docker containers
+.PHONY: containers container-jetpack5 container-jetpack6 container-cuda
+containers: container-jetpack5 container-jetpack6 container-cuda
+
+container-jetpack5:
+	TAG ?= $(URL)/jetpack5:$(SEMVER)
+	docker build . -t $(TAG) -f etc/docker/Dockerfile.triton-jetpack-focal
+
+container-jetpack6:
+	TAG ?= $(URL)/jetpack6:$(SEMVER)
+	docker build . -t $(TAG) -f etc/docker/Dockerfile.nvcr-triton-containers --build-arg JETPACK=1
+
+container-cuda:
+	TAG ?= $(URL)/cuda:$(SEMVER)
+	docker build . -t $(TAG) -f etc/docker/Dockerfile.nvcr-triton-containers
+
+
+.PHONY: module.tar.gz
 module.tar.gz: viam-mlmodelservice-triton.sh first_run.sh
 	tar czf $@ $^
 
-.PHONY: module.tar.gz
+default: containers module.tar.gz
