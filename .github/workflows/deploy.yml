@@ -59,19 +59,15 @@ jobs:
         platform:
           - arch: arm64
             docker_suffix: jetpack5
-            meta_path: etc/viam/meta_jetpack5.json
             tags: "jetpack:5"
           - arch: arm64
             docker_suffix: jetpack6
-            meta_path: etc/viam/meta_jetpack6.json
             tags: "jetpack:6"
           - arch: arm64
             docker_suffix: cuda12_arm
-            meta_path: etc/viam/meta_cuda.json
             tags: "cuda:true"
           - arch: x86
             docker_suffix: cuda12_x86
-            meta_path: etc/viam/meta_cuda.json
             tags: "cuda:true"
     runs-on: ubuntu-latest
     steps:
@@ -83,7 +79,6 @@ jobs:
       if: github.event_name == 'release'
       with:
         module-path: module.tar.gz
-        meta-path: ${{ matrix.platform.meta_path }}
         platform: linux/${{ matrix.platform.arch }}
         version: ${{ env.VERSION }}
         key-id: ${{ secrets.viam_key_id }}
