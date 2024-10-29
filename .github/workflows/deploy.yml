@@ -24,10 +24,10 @@ jobs:
             dockerfile: Dockerfile.nvcr-triton-containers
             build_args:
             runs_on: buildjet-8vcpu-ubuntu-2204-arm
-          - docker_suffix: cuda12_x86
+          - docker_suffix: cuda12_amd64
             dockerfile: Dockerfile.nvcr-triton-containers
             build_args:
-            runs_on: buildjet-8vcpu-ubuntu-2204-x86
+            runs_on: buildjet-8vcpu-ubuntu-2204
     runs-on: ${{ matrix.build_target.runs_on }}
     permissions:
       contents: read
@@ -66,8 +66,8 @@ jobs:
           - arch: arm64
             docker_suffix: cuda12_arm
             tags: "cuda:true"
-          - arch: x86
-            docker_suffix: cuda12_x86
+          - arch: amd64
+            docker_suffix: cuda12_amd64
             tags: "cuda:true"
     runs-on: ubuntu-latest
     steps:
