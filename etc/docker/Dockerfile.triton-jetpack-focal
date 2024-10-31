@@ -135,15 +135,22 @@ ENV DEBIAN_FRONTEND=noninteractive
 # Build and install the Viam Triton MLModelService from our
 # local state against the C++ SDK and Triton Server
 ADD . ${HOME}/opt/src/viam-mlmodelservice-triton
+WORKDIR ${HOME}/opt/src/viam-mlmodelservice-triton
 RUN \
-    cd ${HOME}/opt/src/viam-mlmodelservice-triton && \
     cmake -S . -B build -G Ninja \
+      -DCMAKE_EXPORT_COMPILE_COMMANDS=on \
       -DVIAM_MLMODELSERVICE_TRITON_TRITONSERVER_ROOT=/opt/tritonserver/tritonserver \
       -DCMAKE_BUILD_TYPE=RelWithDebInfo \
       -DCMAKE_PREFIX_PATH=/opt/viam && \
     cmake --build build --target install -- -v && \
     cmake --install build --prefix /opt/viam
 
+# Make an image to run a linter
+FROM build as linter
+RUN apt-get install -y clang-tidy
+ADD . ${HOME}/opt/src/viam-mlmodelservice-triton
+WORKDIR ${HOME}/opt/src/viam-mlmodelservice-triton/src
+RUN clang-tidy -p build viam_mlmodelservice_triton.cpp
 
 FROM runtime AS deploy
 ENV DEBIAN_FRONTEND=noninteractive
