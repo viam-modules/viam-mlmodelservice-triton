@@ -343,7 +343,7 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
     static void initialize_directory(std::string model_name) {
 	    const char* base_directory = std::getenv("VIAM_MODULE_DATA");
 	    // TODO: do this better
-	    const std::string directory_name = base_directory + "/" + model_name + "/1";
+	    const std::string directory_name = base_directory + "/" + model_name + "/1/model.savedmodel";
 	    bool success = std::filesystem::create_directories(directory_name)
 	    if (!success) {
 		    std::ostringstream buffer;
