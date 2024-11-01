@@ -340,7 +340,7 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
         return state_;
     }
 
-    static std::string initialize_directory(std::string model_name) {
+    static std::string initialize_directory_(std::string model_name) {
 	    const char* base_directory = std::getenv("VIAM_MODULE_DATA");
 	    // TODO: do this better
 	    const std::string directory_name = base_directory + "/" + model_name + "/1/model.savedmodel";
@@ -353,7 +353,7 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
 	    return directory_name;
     }
 
-    static void symlink_mlmodel(const struct state_& state) {
+    static void symlink_mlmodel_(const struct state_& state) {
 	    const std::string main_directory = state.path_to_store_data;
             const auto& attributes = state.configuration.attributes();
 
@@ -374,6 +374,8 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
                 throw std::invalid_argument(buffer.str());
             }
 
+	    // TODO: check if these symlinks already exist, and if so, whether
+	    // they have changed. Copy the old ones elsewhere if they have.
 	    const std::string variables = model_path_string + "/variables";
 	    std::filesystem::create_directory_symlink(variables, path_to_store_data + "/variables");
 	    const std::string saved_model = model_path_string + "/saved_model.pb";
@@ -460,6 +462,9 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
             throw std::invalid_argument(buffer.str());
         }
         state->model_name = std::move(*model_name_string);
+
+        const std::string path_to_store_data = initialize_directory_(state->model_name);
+	symlink_mlmodel_(state, path_to_store_data);
 
         auto model_version = attributes->find("model_version");
         if (model_version != attributes->end()) {
@@ -1158,7 +1163,6 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
         //
         // https://github.com/triton-inference-server/server/blob/main/docs/user_guide/model_repository.md
         std::string model_repo_path;
-	std::string path_to_store_data;  // TODO: get better name
 
         // The path to the backend directory containing execution backends.
         std::string backend_directory = kDefaultBackendDirectory;
