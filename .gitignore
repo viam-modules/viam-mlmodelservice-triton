@@ -3,3 +3,6 @@
 
 # Give users an ignored place to build
 /build/*
+
+# Don't care about vim swap files
+*.swp
