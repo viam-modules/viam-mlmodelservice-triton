@@ -353,8 +353,7 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
 	    return directory_name;
     }
 
-    static void symlink_mlmodel_(const struct state_& state) {
-	    const std::string main_directory = state.path_to_store_data;
+    static void symlink_mlmodel_(const struct state_& state, const std::string path_to_store_data) {
             const auto& attributes = state.configuration.attributes();
 
 	    auto model_path = attributes->find("model_path");
@@ -377,6 +376,7 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
 	    // TODO: check if these symlinks already exist, and if so, whether
 	    // they have changed. Copy the old ones elsewhere if they have.
 	    const std::string variables = model_path_string + "/variables";
+	    // TODO: concatenate strings better
 	    std::filesystem::create_directory_symlink(variables, path_to_store_data + "/variables");
 	    const std::string saved_model = model_path_string + "/saved_model.pb";
 	    std::filesystem::create_symlink(variables, path_to_store_data + "/saved_model.pb");
