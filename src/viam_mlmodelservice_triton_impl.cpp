@@ -340,7 +340,7 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
         return state_;
     }
 
-    static void initialize_directory(std::string model_name) {
+    static std::string initialize_directory(std::string model_name) {
 	    const char* base_directory = std::getenv("VIAM_MODULE_DATA");
 	    // TODO: do this better
 	    const std::string directory_name = base_directory + "/" + model_name + "/1/model.savedmodel";
@@ -350,6 +350,34 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
 		    buffer << service_name << ": cannot create directory structure";
 		    throw std::runtime_error(buffer.str());
 	    }
+	    return directory_name;
+    }
+
+    static void symlink_mlmodel(const struct state_& state) {
+	    const std::string main_directory = state.path_to_store_data;
+            const auto& attributes = state.configuration.attributes();
+
+	    auto model_path = attributes->find("model_path");
+            if (model_path == attributes->end()) {
+                std::ostringstream buffer;
+                buffer << service_name
+                       << ": Required parameter `model_path` not found in configuration";
+                throw std::invalid_argument(buffer.str());
+            }
+    
+            const std::string model_path_string = model_path->second->get<std::string>();
+            if (!model_path_string || model_path_string->empty()) {
+                std::ostringstream buffer;
+                buffer << service_name
+                       << ": Required non-empty string parameter `model_path` is either not "
+                          "a string or is an empty string";
+                throw std::invalid_argument(buffer.str());
+            }
+
+	    const std::string variables = model_path_string + "/variables";
+	    std::filesystem::create_directory_symlink(variables, path_to_store_data + "/variables");
+	    const std::string saved_model = model_path_string + "/saved_model.pb";
+	    std::filesystem::create_symlink(variables, path_to_store_data + "/saved_model.pb");
     }
 
     static std::shared_ptr<struct state_> reconfigure_(vsdk::Dependencies dependencies,
@@ -1130,6 +1158,7 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
         //
         // https://github.com/triton-inference-server/server/blob/main/docs/user_guide/model_repository.md
         std::string model_repo_path;
+	std::string path_to_store_data;  // TODO: get better name
 
         // The path to the backend directory containing execution backends.
         std::string backend_directory = kDefaultBackendDirectory;
