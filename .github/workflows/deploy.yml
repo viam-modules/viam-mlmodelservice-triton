@@ -16,18 +16,22 @@ jobs:
             dockerfile: Dockerfile.triton-jetpack-focal
             build_args:
             runs_on: buildjet-8vcpu-ubuntu-2204-arm
+            platform: linux/arm64
           - docker_suffix: jetpack6
             dockerfile: Dockerfile.nvcr-triton-containers
             build_args: --build-arg JETPACK=1
             runs_on: buildjet-8vcpu-ubuntu-2204-arm
+            platform: linux/arm64
           - docker_suffix: cuda12_arm
             dockerfile: Dockerfile.nvcr-triton-containers
             build_args:
             runs_on: buildjet-8vcpu-ubuntu-2204-arm
+            platform: linux/arm64
           - docker_suffix: cuda12_amd64
             dockerfile: Dockerfile.nvcr-triton-containers
             build_args:
             runs_on: buildjet-8vcpu-ubuntu-2204
+            platform: linux/amd64
     runs-on: ${{ matrix.build_target.runs_on }}
     permissions:
       contents: read
@@ -48,7 +52,7 @@ jobs:
       with:
         tags: ${{ env.DOCKER_TAG }}/${{ matrix.build_target.docker_suffix}}:${{ env.VERSION }},${{ env.DOCKER_TAG }}/${{ matrix.build_target.docker_suffix}}:latest
         pull: true
-        platforms: linux/arm64
+        platforms: ${{ matrix.build_target.platform }}
         push: ${{ github.event_name == 'release' }}
         file: etc/docker/${{ matrix.build_target.dockerfile }}
         build-args: ${{ matrix.build_target.build_args }}
