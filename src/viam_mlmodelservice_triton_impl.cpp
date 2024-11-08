@@ -342,9 +342,12 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
 
     static std::string initialize_directory_(std::string model_name) {
 	    const char* base_directory = std::getenv("VIAM_MODULE_DATA");
-	    // TODO: do this better
-	    const std::string directory_name = base_directory + "/" + model_name + "/1/model.savedmodel";
-	    bool success = std::filesystem::create_directories(directory_name)
+
+	    std::stringstream ss;
+	    ss << base_directory << "/" << model_name << "/1/model.savedmodel";
+	    const std::string directory_name = ss.str();
+
+	    bool success = std::filesystem::create_directories(directory_name);
 	    if (!success) {
 		    std::ostringstream buffer;
 		    buffer << service_name << ": cannot create directory structure";
@@ -364,7 +367,7 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
                 throw std::invalid_argument(buffer.str());
             }
     
-            const std::string model_path_string = model_path->second->get<std::string>();
+            const std::string* model_path_string = model_path->second->get<std::string>();
             if (!model_path_string || model_path_string->empty()) {
                 std::ostringstream buffer;
                 buffer << service_name
@@ -375,10 +378,14 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
 
 	    // TODO: check if these symlinks already exist, and if so, whether
 	    // they have changed. Copy the old ones elsewhere if they have.
-	    const std::string variables = model_path_string + "/variables";
-	    // TODO: concatenate strings better
+	    std::stringstream ss;
+	    ss << model_path_string << "/variables";
+	    const std::string variables = ss.str();
 	    std::filesystem::create_directory_symlink(variables, path_to_store_data + "/variables");
-	    const std::string saved_model = model_path_string + "/saved_model.pb";
+
+	    ss.clear();
+	    ss << model_path_string << "/saved_model.pb";
+	    const std::string saved_model = ss.str();
 	    std::filesystem::create_symlink(variables, path_to_store_data + "/saved_model.pb");
     }
 
@@ -464,7 +471,7 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
         state->model_name = std::move(*model_name_string);
 
         const std::string path_to_store_data = initialize_directory_(state->model_name);
-	symlink_mlmodel_(state, path_to_store_data);
+	symlink_mlmodel_(*state.get(), path_to_store_data);
 
         auto model_version = attributes->find("model_version");
         if (model_version != attributes->end()) {
