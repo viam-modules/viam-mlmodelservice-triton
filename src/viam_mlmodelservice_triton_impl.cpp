@@ -395,8 +395,6 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
         const std::string path_to_store_data = initialize_directory_(
             state.model_name, state.model_version, is_tf);
 
-        // TODO: check if these symlinks already exist, and if so, whether
-        // they have changed. Copy the old ones elsewhere if they have.
         ss.clear();
         ss << path_to_store_data;
         if (is_tf) {
@@ -406,6 +404,10 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
         }
         ss << model_path_string << "/variables";
         const std::string triton_name = ss.str();
+        if (std::filesystem::exists(triton_name)) {
+            // TODO: make a backup copy instead of deleting
+            std::filesystem::Path(triton_name)::remove_filename();
+        }
         std::filesystem::create_directory_symlink(*model_path_string, triton_name);
     }
 
