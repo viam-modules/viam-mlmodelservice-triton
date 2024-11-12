@@ -14,14 +14,14 @@
 
 #include "viam_mlmodelservice_triton_impl.hpp"
 
-#include <cstdlib>
-#include <filesystem>
 #include <pthread.h>
 #include <signal.h>
 
 #include <cuda_runtime_api.h>
 
 #include <condition_variable>
+#include <cstdlib>
+#include <filesystem>
 #include <fstream>
 #include <future>
 #include <iostream>
