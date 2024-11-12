@@ -356,7 +356,8 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
 	    return directory_name;
     }
 
-    static void symlink_mlmodel_(const struct state_& state, const std::string path_to_store_data) {
+    static void symlink_mlmodel_(const struct state_& state) {
+            const std::string path_to_store_data = initialize_directory_(state.model_name);
             const auto& attributes = state.configuration.attributes();
 
 	    auto model_path = attributes->find("model_path");
@@ -470,8 +471,7 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
         }
         state->model_name = std::move(*model_name_string);
 
-        const std::string path_to_store_data = initialize_directory_(state->model_name);
-	symlink_mlmodel_(*state.get(), path_to_store_data);
+	symlink_mlmodel_(*state.get());
 
         auto model_version = attributes->find("model_version");
         if (model_version != attributes->end()) {
