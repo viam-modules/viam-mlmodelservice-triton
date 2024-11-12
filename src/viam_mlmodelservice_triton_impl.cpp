@@ -389,10 +389,10 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
         // is a TensorFlow model. In that case, Triton uses a different
         // directory structure compared to all other models.
         std::stringstream ss;
-        ss << model_Path_string << "/saved_model.pb";
+        ss << model_path_string << "/saved_model.pb";
         const std::string saved_model_pb_path = ss.str();
-        const bool is_tf = std::filesystem::exists(saved_model_pb_path)
-            const std::string path_to_store_data = initialize_directory_(
+        const bool is_tf = std::filesystem::exists(saved_model_pb_path);
+        const std::string path_to_store_data = initialize_directory_(
             state.model_name, state.model_version, is_tf);
 
         // TODO: check if these symlinks already exist, and if so, whether
@@ -405,8 +405,8 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
             ss << state.model_version;
         }
         ss << model_path_string << "/variables";
-        const std::string target = ss.str();
-        std::filesystem::create_directory_symlink(model_path_string, target);
+        const std::string triton_name = ss.str();
+        std::filesystem::create_directory_symlink(*model_path_string, triton_name);
     }
 
     static std::shared_ptr<struct state_> reconfigure_(vsdk::Dependencies dependencies,
