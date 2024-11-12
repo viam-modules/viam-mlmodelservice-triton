@@ -406,7 +406,7 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
         const std::string triton_name = ss.str();
         if (std::filesystem::exists(triton_name)) {
             // TODO: make a backup copy instead of deleting
-            std::filesystem::Path(triton_name)::remove_filename();
+            std::filesystem::path(triton_name).remove_filename();
         }
         std::filesystem::create_directory_symlink(*model_path_string, triton_name);
     }
