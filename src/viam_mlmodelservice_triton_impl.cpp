@@ -341,72 +341,72 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
     }
 
     static std::string initialize_directory_(std::string model_name, std::int64_t version, bool is_tf) {
-	    const char* base_directory = std::getenv("VIAM_MODULE_DATA");
+        const char* base_directory = std::getenv("VIAM_MODULE_DATA");
 
-	    std::stringstream ss;
-	    //ss << base_directory << "/" << model_name << "/" << version << "/model.savedmodel";
-	    ss << base_directory << "/" << model_name;
-	    if (is_tf) {
-		    // TensorFlow models need one extra directory to work with
-		    // Triton. So, the symlink to the directory containing the
-		    // data will be named "model.savedmodel" inside the version
-		    // directory, rather than being the version directory
-		    // itself.
-		    ss << "/" << version;
-	    }
-	    const std::string directory_name = ss.str();
+        std::stringstream ss;
+        //ss << base_directory << "/" << model_name << "/" << version << "/model.savedmodel";
+        ss << base_directory << "/" << model_name;
+        if (is_tf) {
+            // TensorFlow models need one extra directory to work with
+            // Triton. So, the symlink to the directory containing the
+            // data will be named "model.savedmodel" inside the version
+            // directory, rather than being the version directory
+            // itself.
+            ss << "/" << version;
+        }
+        const std::string directory_name = ss.str();
 
-	    bool success = std::filesystem::create_directories(directory_name);
-	    if (!success) {
-		    std::ostringstream buffer;
-		    buffer << service_name << ": cannot create directory structure";
-		    throw std::runtime_error(buffer.str());
-	    }
-	    return directory_name;
+        bool success = std::filesystem::create_directories(directory_name);
+        if (!success) {
+            std::ostringstream buffer;
+            buffer << service_name << ": cannot create directory structure";
+            throw std::runtime_error(buffer.str());
+        }
+        return directory_name;
     }
 
     static void symlink_mlmodel_(const struct state_& state) {
-            const auto& attributes = state.configuration.attributes();
+        const auto& attributes = state.configuration.attributes();
 
-	    auto model_path = attributes->find("model_path");
-            if (model_path == attributes->end()) {
-                std::ostringstream buffer;
-                buffer << service_name
-                       << ": Required parameter `model_path` not found in configuration";
-                throw std::invalid_argument(buffer.str());
-            }
-    
-            const std::string* model_path_string = model_path->second->get<std::string>();
-            if (!model_path_string || model_path_string->empty()) {
-                std::ostringstream buffer;
-                buffer << service_name
-                       << ": Required non-empty string parameter `model_path` is either not "
-                          "a string or is an empty string";
-                throw std::invalid_argument(buffer.str());
-            }
+        auto model_path = attributes->find("model_path");
+        if (model_path == attributes->end()) {
+            std::ostringstream buffer;
+            buffer << service_name
+                   << ": Required parameter `model_path` not found in configuration";
+            throw std::invalid_argument(buffer.str());
+        }
 
-	    // If there exists a `saved_model.pb` file in the model path, this
-	    // is a TensorFlow model. In that case, Triton uses a different
-	    // directory structure compared to all other models.
-	    std::stringstream ss;
-	    ss << model_Path_string << "/saved_model.pb";
-	    const std::string saved_model_pb_path = ss.str();
-	    const bool is_tf = std::filesystem::exists(saved_model_pb_path)
+        const std::string* model_path_string = model_path->second->get<std::string>();
+        if (!model_path_string || model_path_string->empty()) {
+            std::ostringstream buffer;
+            buffer << service_name
+                   << ": Required non-empty string parameter `model_path` is either not "
+                      "a string or is an empty string";
+            throw std::invalid_argument(buffer.str());
+        }
+
+        // If there exists a `saved_model.pb` file in the model path, this
+        // is a TensorFlow model. In that case, Triton uses a different
+        // directory structure compared to all other models.
+        std::stringstream ss;
+        ss << model_Path_string << "/saved_model.pb";
+        const std::string saved_model_pb_path = ss.str();
+        const bool is_tf = std::filesystem::exists(saved_model_pb_path)
             const std::string path_to_store_data = initialize_directory_(
-		    state.model_name, state.model_version, is_tf);
+            state.model_name, state.model_version, is_tf);
 
-	    // TODO: check if these symlinks already exist, and if so, whether
-	    // they have changed. Copy the old ones elsewhere if they have.
-	    ss.clear();
-	    ss << path_to_store_data;
-	    if (is_tf) {
-		    ss << "model.savedmodel";
-	    } else {
-		    ss << state.model_version;
-	    }
-	    ss << model_path_string << "/variables";
-	    const std::string target = ss.str();
-	    std::filesystem::create_directory_symlink(model_path_string, target);
+        // TODO: check if these symlinks already exist, and if so, whether
+        // they have changed. Copy the old ones elsewhere if they have.
+        ss.clear();
+        ss << path_to_store_data;
+        if (is_tf) {
+            ss << "model.savedmodel";
+        } else {
+            ss << state.model_version;
+        }
+        ss << model_path_string << "/variables";
+        const std::string target = ss.str();
+        std::filesystem::create_directory_symlink(model_path_string, target);
     }
 
     static std::shared_ptr<struct state_> reconfigure_(vsdk::Dependencies dependencies,
@@ -490,7 +490,7 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
         }
         state->model_name = std::move(*model_name_string);
 
-	symlink_mlmodel_(*state.get());
+        symlink_mlmodel_(*state.get());
 
         auto model_version = attributes->find("model_version");
         if (model_version != attributes->end()) {
