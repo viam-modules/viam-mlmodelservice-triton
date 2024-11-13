@@ -356,11 +356,10 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
         }
         const std::string directory_name = ss.str();
 
-	std::cout << "ALAN ABOUT TO CREATE DIRECTORIES: ->" << directory_name << "<-\n" << std::flush;
-	std::error_code ec;
+        std::error_code ec;
         bool success = std::filesystem::create_directories(directory_name, ec);
-	// If the directory already exists, `success` will be false but the
-	// error code will be 0. Don't treat that as an error.
+        // If the directory already exists, `success` will be false but the
+        // error code will be 0. Don't treat that as an error.
         if (!success && ec.value() != 0) {
             std::ostringstream buffer;
             buffer << service_name << ": cannot create directory structure";
@@ -389,14 +388,12 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
             throw std::invalid_argument(buffer.str());
         }
 
-        // If the model_version is -1, it means use the most recent
-        // version. We don't want to add a directory named `-1`, so just
-        // use a large number.
-	const std::int64_t model_version = state.model_version == -1 ? 10000 : state.model_version;
+        // If the model_version is -1, it means use the most recent version. We don't want to add a
+        // directory named `-1`, so just use a large number.
+        const std::int64_t model_version = state.model_version == -1 ? 10000 : state.model_version;
 
-        // If there exists a `saved_model.pb` file in the model path, this
-        // is a TensorFlow model. In that case, Triton uses a different
-        // directory structure compared to all other models.
+        // If there exists a `saved_model.pb` file in the model path, this is a TensorFlow model.
+        // In that case, Triton uses a different directory structure compared to all other models.
         std::stringstream ss_pb;
         ss_pb << *model_path_string << "/saved_model.pb";
         const std::string saved_model_pb_path = ss_pb.str();
@@ -404,7 +401,7 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
         const std::string path_to_store_data = initialize_directory_(
             state.model_name, model_version, is_tf);
 
-	std::stringstream ss;
+        std::stringstream ss;
         ss << path_to_store_data << "/";
         if (is_tf) {
             ss << "model.savedmodel";
@@ -412,21 +409,17 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
             ss << model_version;
         }
         const std::string triton_name = ss.str();
-	std::cout << "ALAN ABOUT TO CHECK EXISTENCE OF : ->" << triton_name << "<-\n" << std::flush;
         if (std::filesystem::exists(triton_name)) {
             // TODO: make a backup copy instead of deleting
-	    std::cout << "ALAN ABOUT TO DELETE PATH: ->" << triton_name << "<-\n" << std::flush;
             const bool success = std::filesystem::remove(triton_name);
-	    if (!success) {
+        if (!success) {
                 std::ostringstream buffer;
                 buffer << service_name
                        << ": Unable to delete old model symlink";
                 throw std::invalid_argument(buffer.str());
-	    }
         }
-        std::cout << "ALAN ABOUT TO SYMLINK PATH: ->" << *model_path_string << "<- to ->" << triton_name << "<-\n" << std::flush;
+        }
         std::filesystem::create_directory_symlink(*model_path_string, triton_name);
-        std::cout << "ALAN SUCCEEDED IN SYMLINKING\n" << std::flush;
     }
 
     static std::shared_ptr<struct state_> reconfigure_(vsdk::Dependencies dependencies,
