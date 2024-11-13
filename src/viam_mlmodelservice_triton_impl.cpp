@@ -394,6 +394,8 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
 
         // If there exists a `saved_model.pb` file in the model path, this is a TensorFlow model.
         // In that case, Triton uses a different directory structure compared to all other models.
+        // For details, see
+        // https://docs.nvidia.com/deeplearning/triton-inference-server/user-guide/docs/user_guide/model_repository.html#model-files
         std::stringstream ss_pb;
         ss_pb << *model_path_string << "/saved_model.pb";
         const std::string saved_model_pb_path = ss_pb.str();
