@@ -387,8 +387,9 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
             throw std::invalid_argument(buffer.str());
         }
 
-        // If the model_version is -1, it means use the most recent version. We don't want to add a
-        // directory named `-1`, so just use a large number.
+        // If the model_version is -1, it means use the most recent version. We can't add a
+        // directory named `-1` (we get errors trying to create a directory whose name starts with
+        // a hyphen), so just use a large number.
         const std::int64_t model_version = state.model_version == -1 ? 10000 : state.model_version;
 
         // If there exists a `saved_model.pb` file in the model path, this is a TensorFlow model.
