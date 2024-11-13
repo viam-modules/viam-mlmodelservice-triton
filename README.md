@@ -150,7 +150,7 @@ An example detailed configuration with optional parameters specified would look 
     "backend_directory": "/opt/tritonserver/backends",
     "model_name": "efficientdet-lite4-detection",
     "model_version": 1,
-    "model_repository_path": "${packages.ml_model.FaceDetector}",
+    "model_path": "${packages.ml_model.FaceDetector}",
     "preferred_input_memory_type_id": 0,
     "preferred_input_memory_type": "gpu",
     "tensor_name_remappings": {
