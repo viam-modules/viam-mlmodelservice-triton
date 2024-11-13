@@ -482,9 +482,6 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
         }
         state->model_name = std::move(*model_name_string);
 
-        symlink_mlmodel_(*state.get());
-        std::cout << "ALAN SUCCESSFULLY FINISHED SYMLINKING\n" << std::flush;
-
         auto model_version = attributes->find("model_version");
         if (model_version != attributes->end()) {
             auto* const model_version_value = model_version->second->get<double>();
@@ -499,7 +496,8 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
             state->model_version = static_cast<std::int64_t>(*model_version_value);
         }
 
-        std::cout << "ALAN ABOUT TO START PREFERRED MEMORY TYPE\n" << std::flush;
+        symlink_mlmodel_(*state.get());
+
         auto preferred_input_memory_type = attributes->find("preferred_input_memory_type");
         if (preferred_input_memory_type == attributes->end()) {
             // If the user didn't specify, decide if we can upgrade to
@@ -610,61 +608,43 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
                                     state->output_name_remappings_reversed);
             }
         }
-        std::cout << "ALAN SUCCESSFULLY FINISHED REMAPPINGS\n" << std::flush;
-        std::cout << "ALAN 1\n" << std::flush;
 
         auto allocator = cxxapi::make_unique<TRITONSERVER_ResponseAllocator>(
             allocate_response_, deallocate_response_, nullptr);
 
-        std::cout << "ALAN 2\n" << std::flush;
         auto server_options = cxxapi::make_unique<TRITONSERVER_ServerOptions>();
 
-        std::cout << "ALAN 3\n" << std::flush;
         // TODO: We should probably pool servers based on repo path
         // and backend directory.
         cxxapi::call(cxxapi::the_shim.ServerOptionsSetModelRepositoryPath)(
             server_options.get(), std::getenv("VIAM_MODULE_DATA"));
 
-        std::cout << "ALAN 4\n" << std::flush;
         cxxapi::call(cxxapi::the_shim.ServerOptionsSetBackendDirectory)(
             server_options.get(), state->backend_directory.c_str());
 
-        std::cout << "ALAN 5\n" << std::flush;
         cxxapi::call(cxxapi::the_shim.ServerOptionsSetLogWarn)(server_options.get(), true);
         cxxapi::call(cxxapi::the_shim.ServerOptionsSetLogError)(server_options.get(), true);
 
-        std::cout << "ALAN 6\n" << std::flush;
         // Needed so we can load a tensorflow model without a config file
         cxxapi::call(cxxapi::the_shim.ServerOptionsSetStrictModelConfig)(server_options.get(),
                                                                          false);
 
-        std::cout << "ALAN 7\n" << std::flush;
         auto server = cxxapi::make_unique<TRITONSERVER_Server>(server_options.get());
 
-        std::cout << "ALAN 8\n" << std::flush;
         // TODO(RSDK-4663): For now, we are hardcoding a wait that is
         // a subset of the RDK default timeout.
         const size_t timeout_seconds = 30;
         bool result = false;
-        std::cout << "ALAN 9\n" << std::flush;
         for (size_t tries = 0; !result && (tries != timeout_seconds); ++tries) {
-            std::cout << "ALAN 20\n" << std::flush;
             cxxapi::call(cxxapi::the_shim.ServerIsLive)(server.get(), &result);
-            std::cout << "ALAN 21\n" << std::flush;
             if (result) {
-                std::cout << "ALAN 22\n" << std::flush;
                 cxxapi::call(cxxapi::the_shim.ServerModelIsReady)(
                     server.get(), state->model_name.c_str(), state->model_version, &result);
-                std::cout << "ALAN 23\n" << std::flush;
                 if (!result) {
-                    std::cout << "ALAN 24\n" << std::flush;
                     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
                 }
-                std::cout << "ALAN 25\n" << std::flush;
             }
-            std::cout << "ALAN 26\n" << std::flush;
         }
-        std::cout << "ALAN 10\n" << std::flush;
         if (!result) {
             std::ostringstream buffer;
             buffer << service_name << "Triton Server did not become live and ready within "
@@ -672,7 +652,6 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
             throw std::runtime_error(buffer.str());
         }
 
-        std::cout << "ALAN 11\n" << std::flush;
         cxxapi::unique_ptr<TRITONSERVER_Message> model_metadata_message;
         {
             TRITONSERVER_Message* out = nullptr;
@@ -681,17 +660,13 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
             model_metadata_message = cxxapi::take_unique(out);
         }
 
-        std::cout << "ALAN 12\n" << std::flush;
         const char* model_metadata_json_bytes;
         size_t model_metadata_json_size;
-        std::cout << "ALAN 13\n" << std::flush;
         cxxapi::call(cxxapi::the_shim.MessageSerializeToJson)(
             model_metadata_message.get(), &model_metadata_json_bytes, &model_metadata_json_size);
 
-        std::cout << "ALAN 14\n" << std::flush;
         rapidjson::Document model_metadata_json;
         model_metadata_json.Parse(model_metadata_json_bytes, model_metadata_json_size);
-        std::cout << "ALAN 15\n" << std::flush;
         if (model_metadata_json.HasParseError()) {
             std::ostringstream buffer;
             buffer << service_name
@@ -700,7 +675,6 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
                    << rapidjson::GetParseError_En(model_metadata_json.GetParseError());
             throw std::runtime_error(buffer.str());
         }
-        std::cout << "ALAN SUCCESSFULLY PARSED METADATA\n" << std::flush;
 
         const auto populate_tensor_infos = [&model_metadata_json](const auto& array,
                                                                   const auto& name_remappings,
@@ -836,7 +810,6 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
         state->allocator = std::move(allocator);
         state->server = std::move(server);
 
-        std::cout << "ALAN SUCCESSFULLY FINISHED RECONFIGURE\n" << std::flush;
         return state;
     }
 
