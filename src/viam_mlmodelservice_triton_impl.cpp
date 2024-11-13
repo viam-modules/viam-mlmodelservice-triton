@@ -414,12 +414,12 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
         if (std::filesystem::exists(triton_name)) {
             // TODO: make a backup copy instead of deleting
             const bool success = std::filesystem::remove(triton_name);
-        if (!success) {
+            if (!success) {
                 std::ostringstream buffer;
                 buffer << service_name
                        << ": Unable to delete old model symlink";
                 throw std::invalid_argument(buffer.str());
-        }
+            }
         }
         std::filesystem::create_directory_symlink(*model_path_string, triton_name);
     }
