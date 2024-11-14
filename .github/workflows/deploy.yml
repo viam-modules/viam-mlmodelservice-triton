@@ -19,7 +19,7 @@ jobs:
             platform: linux/arm64
           - docker_suffix: jetpack6
             dockerfile: Dockerfile.nvcr-triton-containers
-            build_args: --build-arg JETPACK=1
+            build_args: JETPACK=1
             runs_on: buildjet-8vcpu-ubuntu-2204-arm
             platform: linux/arm64
           - docker_suffix: cuda12_arm
