@@ -360,10 +360,9 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
             throw std::invalid_argument(buffer.str());
         }
 
-        // If the model_version is -1, it means use the most recent version. We can't add a
-        // directory named `-1` (we get errors trying to create a directory whose name starts with
-        // a hyphen), so just use a large number.
-        const std::int64_t model_version = state.model_version == -1 ? 10000 : state.model_version;
+        // The user doesn't have a way to set the version number: they've downloaded the only
+        // version available to them. So, set the version to 1
+        const std::string model_version = "1";
 
         // If there exists a `saved_model.pb` file in the model path, this is a TensorFlow model.
         // In that case, Triton uses a different directory structure compared to all other models.
@@ -375,14 +374,14 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
         std::filesystem::path directory_name =
             std::filesystem::path(std::getenv("VIAM_MODULE_DATA")) / state.model_name;
         if (is_tf) {
-            directory_name /= std::to_string(model_version);
+            directory_name /= model_version;
         }
         std::filesystem::create_directories(directory_name);
 
         if (is_tf) {
             directory_name /= "model.savedmodel";
         } else {
-            directory_name /= std::to_string(model_version);
+            directory_name /= model_version;
         }
         const std::string triton_name = directory_name.string();
 
@@ -432,6 +431,7 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
             // model path.
             symlink_mlmodel_(*state.get());
             state->model_repo_path = std::getenv("VIAM_MODULE_DATA");
+            state->model_version = 1;
         } else {
             auto* const model_repo_path_string = model_repo_path->second->get<std::string>();
             if (!model_repo_path_string || model_repo_path_string->empty()) {
@@ -442,6 +442,22 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
                 throw std::invalid_argument(buffer.str());
             }
             state->model_repo_path = std::move(*model_repo_path_string);
+
+            // If you specify your own model repo path, you need to specify your own model version
+            // number, too.
+            auto model_version = attributes->find("model_version");
+            if (model_version != attributes->end()) {
+                auto* const model_version_value = model_version->second->get<double>();
+                if (!model_version_value || (*model_version_value < 1) ||
+                    (std::nearbyint(*model_version_value) != *model_version_value)) {
+                    std::ostringstream buffer;
+                    buffer << service_name
+                           << ": Optional parameter `model_version` was provided, but is not a "
+                              "natural number";
+                    throw std::invalid_argument(buffer.str());
+                }
+                state->model_version = static_cast<std::int64_t>(*model_version_value);
+            }
         }
 
         // Pull the backend directory out of the configuration, if provided.
@@ -478,20 +494,6 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
             throw std::invalid_argument(buffer.str());
         }
         state->model_name = std::move(*model_name_string);
-
-        auto model_version = attributes->find("model_version");
-        if (model_version != attributes->end()) {
-            auto* const model_version_value = model_version->second->get<double>();
-            if (!model_version_value || (*model_version_value < 1) ||
-                (std::nearbyint(*model_version_value) != *model_version_value)) {
-                std::ostringstream buffer;
-                buffer << service_name
-                       << ": Optional parameter `model_version` was provided, but is not a natural "
-                          "number";
-                throw std::invalid_argument(buffer.str());
-            }
-            state->model_version = static_cast<std::int64_t>(*model_version_value);
-        }
 
         auto preferred_input_memory_type = attributes->find("preferred_input_memory_type");
         if (preferred_input_memory_type == attributes->end()) {
