@@ -425,6 +425,25 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
 
         const auto& attributes = state->configuration.attributes();
 
+        // Pull the model repository path out of the configuration.
+        auto model_repo_path = attributes->find("model_repository_path");
+        if (model_repo_path == attributes->end()) {
+            // With no model repository path, we try to construct our own by symlinking a single
+            // model path.
+            symlink_mlmodel_(*state.get());
+            state->model_repo_path = std::getenv("VIAM_MODULE_DATA");
+        } else {
+            auto* const model_repo_path_string = model_repo_path->second->get<std::string>();
+            if (!model_repo_path_string || model_repo_path_string->empty()) {
+                std::ostringstream buffer;
+                buffer << service_name
+                       << ": Non-empty string parameter `model_repository_path` is either not "
+                          "a string or is an empty string";
+                throw std::invalid_argument(buffer.str());
+            }
+            state->model_repo_path = std::move(*model_repo_path_string);
+        }
+
         // Pull the backend directory out of the configuration, if provided.
         auto backend_directory = attributes->find("backend_directory");
         if (backend_directory != attributes->end()) {
@@ -473,8 +492,6 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
             }
             state->model_version = static_cast<std::int64_t>(*model_version_value);
         }
-
-        symlink_mlmodel_(*state.get());
 
         auto preferred_input_memory_type = attributes->find("preferred_input_memory_type");
         if (preferred_input_memory_type == attributes->end()) {
@@ -595,7 +612,7 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
         // TODO: We should probably pool servers based on repo path
         // and backend directory.
         cxxapi::call(cxxapi::the_shim.ServerOptionsSetModelRepositoryPath)(
-            server_options.get(), std::getenv("VIAM_MODULE_DATA"));
+            server_options.get(), state->model_repo_path.c_str());
 
         cxxapi::call(cxxapi::the_shim.ServerOptionsSetBackendDirectory)(
             server_options.get(), state->backend_directory.c_str());
@@ -1153,6 +1170,12 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
         // construction / reconfiguration.
         vsdk::Dependencies dependencies;
         vsdk::ResourceConfig configuration;
+
+        // The path to the model repository. The provided directory must
+        // meet the layout requirements for a triton model repository. See
+        //
+        // https://github.com/triton-inference-server/server/blob/main/docs/user_guide/model_repository.md
+        std::string model_repo_path;
 
         // The path to the backend directory containing execution backends.
         std::string backend_directory = kDefaultBackendDirectory;
