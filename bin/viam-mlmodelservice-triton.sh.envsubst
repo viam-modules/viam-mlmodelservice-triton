@@ -6,6 +6,10 @@ VIAM_DIR=`realpath ~/.viam`
 
 # TODO: Validate presence of NVidia container runtime
 
+# Sneaky trick alert: we need to get $VIAM_MODULE_DATA propagated into the actual server. If we set
+# the environment variable using a `-e` flag on the docker command, it would be set for the command
+# run, but that command is `sudo`, which does *not* propagate environment variables to its
+# sub-command! So, set it within the `sudo` command at the end.
 exec docker run \
      --rm \
      --runtime=nvidia --gpus=all \
