@@ -424,13 +424,33 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
 
         const auto& attributes = state->configuration.attributes();
 
+        // Pull the model name out of the configuration.
+        auto model_name = attributes->find("model_name");
+        if (model_name == attributes->end()) {
+            std::ostringstream buffer;
+            buffer << service_name
+                   << ": Required parameter `model_name` not found in configuration";
+            throw std::invalid_argument(buffer.str());
+        }
+
+        auto* const model_name_string = model_name->second->get<std::string>();
+        if (!model_name_string || model_name_string->empty()) {
+            std::ostringstream buffer;
+            buffer << service_name
+                   << ": Required non-empty string parameter `model_name` is either not a "
+                      "string "
+                      "or is an empty string";
+            throw std::invalid_argument(buffer.str());
+        }
+        state->model_name = std::move(*model_name_string);
+
         // Pull the model repository path out of the configuration.
         auto model_repo_path = attributes->find("model_repository_path");
         if (model_repo_path == attributes->end()) {
             // With no model repository path, we try to construct our own by symlinking a single
             // model path.
             symlink_mlmodel_(*state.get());
-            state->model_repo_path = std::getenv("VIAM_MODULE_DATA");
+            state->model_repo_path = std::move(std::getenv("VIAM_MODULE_DATA"));
             state->model_version = 1;
         } else {
             auto* const model_repo_path_string = model_repo_path->second->get<std::string>();
@@ -474,26 +494,6 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
             }
             state->backend_directory = std::move(*backend_directory_string);
         }
-
-        // Pull the model name out of the configuration.
-        auto model_name = attributes->find("model_name");
-        if (model_name == attributes->end()) {
-            std::ostringstream buffer;
-            buffer << service_name
-                   << ": Required parameter `model_name` not found in configuration";
-            throw std::invalid_argument(buffer.str());
-        }
-
-        auto* const model_name_string = model_name->second->get<std::string>();
-        if (!model_name_string || model_name_string->empty()) {
-            std::ostringstream buffer;
-            buffer << service_name
-                   << ": Required non-empty string parameter `model_name` is either not a "
-                      "string "
-                      "or is an empty string";
-            throw std::invalid_argument(buffer.str());
-        }
-        state->model_name = std::move(*model_name_string);
 
         auto preferred_input_memory_type = attributes->find("preferred_input_memory_type");
         if (preferred_input_memory_type == attributes->end()) {
