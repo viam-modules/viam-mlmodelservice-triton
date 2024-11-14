@@ -355,15 +355,7 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
         }
         const std::string directory_name = ss.str();
 
-        std::error_code ec;
-        bool success = std::filesystem::create_directories(directory_name, ec);
-        // If the directory already exists, `success` will be false but the
-        // error code will be 0. Don't treat that as an error.
-        if (!success && ec.value() != 0) {
-            std::ostringstream buffer;
-            buffer << service_name << ": cannot create directory structure";
-            throw std::runtime_error(buffer.str());
-        }
+        std::filesystem::create_directories(directory_name);
         return directory_name;
     }
 
