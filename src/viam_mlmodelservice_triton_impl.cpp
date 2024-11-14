@@ -453,6 +453,15 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
             state->model_repo_path = std::move(std::getenv("VIAM_MODULE_DATA"));
             state->model_version = 1;
         } else {
+            // If the model_repository_path is specified, forbid specifying the model_path.
+            if (attributes->find("model_repository_path") != attributes->end()) {
+                std::ostringstream buffer;
+                buffer << service_name
+                       << ": Both the `model_repository_path` and `model_path` are set, "
+                          "but we expect only one or the other.";
+                throw std::invalid_argument(buffer.str());
+            }
+
             auto* const model_repo_path_string = model_repo_path->second->get<std::string>();
             if (!model_repo_path_string || model_repo_path_string->empty()) {
                 std::ostringstream buffer;
@@ -463,7 +472,7 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
             }
             state->model_repo_path = std::move(*model_repo_path_string);
 
-            // If you specify your own model repo path, you need to specify your own model version
+            // If you specify your own model repo path, you may specify your own model version
             // number, too.
             auto model_version = attributes->find("model_version");
             if (model_version != attributes->end()) {
