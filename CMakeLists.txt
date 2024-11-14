@@ -6,8 +6,8 @@ project(viam-mlmodelservice-triton
   LANGUAGES CXX
 )
 
-# Use of the C++ SDK requires C++14.
-set(CMAKE_CXX_STANDARD 14)
+# Use of the C++ SDK requires C++14 or later. We make use of std::filesystem, which requires C++17 or later.
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_CXX_EXTENSIONS OFF)
 

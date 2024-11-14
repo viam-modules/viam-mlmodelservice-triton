@@ -20,6 +20,8 @@
 #include <cuda_runtime_api.h>
 
 #include <condition_variable>
+#include <cstdlib>
+#include <filesystem>
 #include <fstream>
 #include <future>
 #include <iostream>
@@ -338,6 +340,64 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
         return state_;
     }
 
+    static void symlink_mlmodel_(const struct state_& state) {
+        const auto& attributes = state.configuration.attributes();
+
+        auto model_path = attributes->find("model_path");
+        if (model_path == attributes->end()) {
+            std::ostringstream buffer;
+            buffer << service_name
+                   << ": Required parameter `model_path` not found in configuration";
+            throw std::invalid_argument(buffer.str());
+        }
+
+        const std::string* model_path_string = model_path->second->get<std::string>();
+        if (!model_path_string || model_path_string->empty()) {
+            std::ostringstream buffer;
+            buffer << service_name
+                   << ": Required non-empty string parameter `model_path` is either not "
+                      "a string or is an empty string";
+            throw std::invalid_argument(buffer.str());
+        }
+
+        // The user doesn't have a way to set the version number: they've downloaded the only
+        // version available to them. So, set the version to 1
+        const std::string model_version = "1";
+
+        // If there exists a `saved_model.pb` file in the model path, this is a TensorFlow model.
+        // In that case, Triton uses a different directory structure compared to all other models.
+        // For details, see
+        // https://docs.nvidia.com/deeplearning/triton-inference-server/user-guide/docs/user_guide/model_repository.html#model-files
+        const std::filesystem::path saved_model_pb_path =
+            std::filesystem::path(*model_path_string) / "saved_model.pb";
+        const bool is_tf = std::filesystem::exists(saved_model_pb_path);
+        std::filesystem::path directory_name =
+            std::filesystem::path(std::getenv("VIAM_MODULE_DATA")) / state.model_name;
+        if (is_tf) {
+            directory_name /= model_version;
+        }
+        std::filesystem::create_directories(directory_name);
+
+        if (is_tf) {
+            directory_name /= "model.savedmodel";
+        } else {
+            directory_name /= model_version;
+        }
+        const std::string triton_name = directory_name.string();
+
+        if (std::filesystem::exists(triton_name)) {
+            // TODO: make a backup copy instead of deleting
+            const bool success = std::filesystem::remove(triton_name);
+            if (!success) {
+                std::ostringstream buffer;
+                buffer << service_name
+                       << ": Unable to delete old model symlink";
+                throw std::invalid_argument(buffer.str());
+            }
+        }
+        std::filesystem::create_directory_symlink(*model_path_string, triton_name);
+    }
+
     static std::shared_ptr<struct state_> reconfigure_(vsdk::Dependencies dependencies,
                                                        vsdk::ResourceConfig configuration) {
         auto state =
@@ -364,41 +424,6 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
 
         const auto& attributes = state->configuration.attributes();
 
-        // Pull the model repository path out of the configuration.
-        auto model_repo_path = attributes->find("model_repository_path");
-        if (model_repo_path == attributes->end()) {
-            std::ostringstream buffer;
-            buffer << service_name
-                   << ": Required parameter `model_repository_path` not found in configuration";
-            throw std::invalid_argument(buffer.str());
-        }
-
-        auto* const model_repo_path_string = model_repo_path->second->get<std::string>();
-        if (!model_repo_path_string || model_repo_path_string->empty()) {
-            std::ostringstream buffer;
-            buffer << service_name
-                   << ": Required non-empty string parameter `model_repository_path` is either not "
-                      "a string "
-                      "or is an empty string";
-            throw std::invalid_argument(buffer.str());
-        }
-        state->model_repo_path = std::move(*model_repo_path_string);
-
-        // Pull the backend directory out of the configuration, if provided.
-        auto backend_directory = attributes->find("backend_directory");
-        if (backend_directory != attributes->end()) {
-            auto* const backend_directory_string = backend_directory->second->get<std::string>();
-            if (!backend_directory_string || backend_directory_string->empty()) {
-                std::ostringstream buffer;
-                buffer << service_name
-                       << ": Configuration parameter `backend_directory` is either not a"
-                          "string "
-                          "or is an empty string";
-                throw std::invalid_argument(buffer.str());
-            }
-            state->backend_directory = std::move(*backend_directory_string);
-        }
-
         // Pull the model name out of the configuration.
         auto model_name = attributes->find("model_name");
         if (model_name == attributes->end()) {
@@ -419,18 +444,64 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
         }
         state->model_name = std::move(*model_name_string);
 
-        auto model_version = attributes->find("model_version");
-        if (model_version != attributes->end()) {
-            auto* const model_version_value = model_version->second->get<double>();
-            if (!model_version_value || (*model_version_value < 1) ||
-                (std::nearbyint(*model_version_value) != *model_version_value)) {
+        // Pull the model repository path out of the configuration.
+        auto model_repo_path = attributes->find("model_repository_path");
+        if (model_repo_path == attributes->end()) {
+            // With no model repository path, we try to construct our own by symlinking a single
+            // model path.
+            symlink_mlmodel_(*state.get());
+            state->model_repo_path = std::move(std::getenv("VIAM_MODULE_DATA"));
+            state->model_version = 1;
+        } else {
+            // If the model_repository_path is specified, forbid specifying the model_path.
+            if (attributes->find("model_repository_path") != attributes->end()) {
                 std::ostringstream buffer;
                 buffer << service_name
-                       << ": Optional parameter `model_version` was provided, but is not a natural "
-                          "number";
+                       << ": Both the `model_repository_path` and `model_path` are set, "
+                          "but we expect only one or the other.";
                 throw std::invalid_argument(buffer.str());
             }
-            state->model_version = static_cast<std::int64_t>(*model_version_value);
+
+            auto* const model_repo_path_string = model_repo_path->second->get<std::string>();
+            if (!model_repo_path_string || model_repo_path_string->empty()) {
+                std::ostringstream buffer;
+                buffer << service_name
+                       << ": Non-empty string parameter `model_repository_path` is either not "
+                          "a string or is an empty string";
+                throw std::invalid_argument(buffer.str());
+            }
+            state->model_repo_path = std::move(*model_repo_path_string);
+
+            // If you specify your own model repo path, you may specify your own model version
+            // number, too.
+            auto model_version = attributes->find("model_version");
+            if (model_version != attributes->end()) {
+                auto* const model_version_value = model_version->second->get<double>();
+                if (!model_version_value || (*model_version_value < 1) ||
+                    (std::nearbyint(*model_version_value) != *model_version_value)) {
+                    std::ostringstream buffer;
+                    buffer << service_name
+                           << ": Optional parameter `model_version` was provided, but is not a "
+                              "natural number";
+                    throw std::invalid_argument(buffer.str());
+                }
+                state->model_version = static_cast<std::int64_t>(*model_version_value);
+            }
+        }
+
+        // Pull the backend directory out of the configuration, if provided.
+        auto backend_directory = attributes->find("backend_directory");
+        if (backend_directory != attributes->end()) {
+            auto* const backend_directory_string = backend_directory->second->get<std::string>();
+            if (!backend_directory_string || backend_directory_string->empty()) {
+                std::ostringstream buffer;
+                buffer << service_name
+                       << ": Configuration parameter `backend_directory` is either not a"
+                          "string "
+                          "or is an empty string";
+                throw std::invalid_argument(buffer.str());
+            }
+            state->backend_directory = std::move(*backend_directory_string);
         }
 
         auto preferred_input_memory_type = attributes->find("preferred_input_memory_type");

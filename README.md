@@ -118,9 +118,10 @@ The following attributes are available for the MLModel service `viam:mlmodelserv
 | Name | Type | Inclusion | Description |
 | ---- | ---- | --------- | ----------- |
 | `model_name` | string | **Required** | The model to be loaded from the model repository. |
-| `model_repository_path` | string | **Required** | The container-side path to a model repository. Note that this must be a subdirectory of the `$HOME/.viam` directory of the user running `viam-server`. |
+| `model_repository_path` | string | **Semi-Required** | The container-side path to a model repository. Note that this must be a subdirectory of the `$HOME/.viam` directory of the user running `viam-server`. Exactly one of the `model_repository_path` or the `model_path` is required. |
+| `model_path` | string | **Semi-Required** | The directory in which the model to use is stored. You can use strings like `${packages.ml_model.MyModel}`, too. Exactly one of the `model_repository_path` or the `model_path` is required. |
 | `backend_directory` | string | Optional | A container side path to the TritonServer "backend" directory. You normally do not need to override this; the build will set it to the backend directory of the Triton Server installation in the container. You may set it if you wish to use a different set of backends. |
-| `model_version` | int | Optional | The version of the model to be loaded. If not specified, the module will use the newest version of the model named by model_name.<br><br>Default: `-1` (newest) |
+| `model_version` | int | Optional | The version of the model to be loaded from `model_repository_path`. If not specified, the module will use the newest version of the model named by model_name.<br><br>Default: `-1` (newest) |
 | `preferred_input_memory_type` | string | Optional | One of `cpu`, `cpu-pinned`, or `gpu`. This controlls the type of memory that will be allocated by the module for input tensors. If not specified, this will default to `cpu` if no CUDA-capable devices are detected at runtime, or to `gpu` if CUDA-capable devices are found.|
 | `preferred_input_memory_type_id` | int | Optional | CUDA identifier on which to allocate gpu or cpu-pinned input tensors. You probably don't need to change this unless you have multiple GPUs<br><br>Default: `0` (first device) |
 | `tensor_name_remappings` | obj | Optional | Provides two dictionaries under the `inputs` and `outputs` keys that rename the models' tensors. Other Viam services, like the [vision service]([/ml/vision/](https://docs.viam.com/registry/advanced/mlmodel-design/)) may expect to work with tensors with particular names. Use this map to rename the tensors from the loaded model to what the vision service expects as needed to meet those requirements.<br><br>Default: `{}` |
@@ -134,7 +135,7 @@ An example minimal configuration would look like this, within your robot’s "se
   "type": "mlmodel",
   "attributes": {
     "model_name": "efficientdet-lite4-detection",
-    "model_repository_path": "/path/to/.viam/triton/repository"
+    "model_path": "${packages.ml_model.FaceDetector}"
   },
   "model": "viam:mlmodelservice:triton",
   "name": "mlmodel-effdet-triton"
@@ -150,7 +151,7 @@ An example detailed configuration with optional parameters specified would look 
     "backend_directory": "/opt/tritonserver/backends",
     "model_name": "efficientdet-lite4-detection",
     "model_version": 1,
-    "model_repository_path": "/path/to/.viam/triton/repository",
+    "model_path": "${packages.ml_model.FaceDetector}",
     "preferred_input_memory_type_id": 0,
     "preferred_input_memory_type": "gpu",
     "tensor_name_remappings": {
@@ -164,6 +165,20 @@ An example detailed configuration with optional parameters specified would look 
         "images": "image"
       }
     }
+  },
+  "model": "viam:mlmodelservice:triton",
+  "name": "mlmodel-effdet-triton"
+}
+```
+
+If you have your own Triton model repository, you could use it like this:
+
+```json {class="line-numbers linkable-line-numbers"}
+{
+  "type": "mlmodel",
+  "attributes": {
+    "model_name": "efficientdet-lite4-detection",
+    "model_repository_path": "/path/to/.viam/triton/repository"
   },
   "model": "viam:mlmodelservice:triton",
   "name": "mlmodel-effdet-triton"
