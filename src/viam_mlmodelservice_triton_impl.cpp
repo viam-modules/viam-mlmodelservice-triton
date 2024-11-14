@@ -340,25 +340,6 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
         return state_;
     }
 
-    static std::string initialize_directory_(std::string model_name, std::int64_t version, bool is_tf) {
-        const char* base_directory = std::getenv("VIAM_MODULE_DATA");
-
-        std::stringstream ss;
-        ss << base_directory << "/" << model_name;
-        if (is_tf) {
-            // TensorFlow models need one extra directory to work with
-            // Triton. So, the symlink to the directory containing the
-            // data will be named "model.savedmodel" inside the version
-            // directory, rather than being the version directory
-            // itself.
-            ss << "/" << version;
-        }
-        const std::string directory_name = ss.str();
-
-        std::filesystem::create_directories(directory_name);
-        return directory_name;
-    }
-
     static void symlink_mlmodel_(const struct state_& state) {
         const auto& attributes = state.configuration.attributes();
 
@@ -392,17 +373,20 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
         ss_pb << *model_path_string << "/saved_model.pb";
         const std::string saved_model_pb_path = ss_pb.str();
         const bool is_tf = std::filesystem::exists(saved_model_pb_path);
-        const std::string path_to_store_data = initialize_directory_(
-            state.model_name, model_version, is_tf);
-
-        std::stringstream ss;
-        ss << path_to_store_data << "/";
+        std::filesystem::path directory_name =
+            std::filesystem::path(std::getenv("VIAM_MODULE_DATA")) / state.model_name;
         if (is_tf) {
-            ss << "model.savedmodel";
-        } else {
-            ss << model_version;
+            directory_name /= std::to_string(model_version);
         }
-        const std::string triton_name = ss.str();
+        std::filesystem::create_directories(directory_name);
+
+        if (is_tf) {
+            directory_name /= "model.savedmodel";
+        } else {
+            directory_name /= std::to_string(model_version);
+        }
+        const std::string triton_name = directory_name.string();
+
         if (std::filesystem::exists(triton_name)) {
             // TODO: make a backup copy instead of deleting
             const bool success = std::filesystem::remove(triton_name);
