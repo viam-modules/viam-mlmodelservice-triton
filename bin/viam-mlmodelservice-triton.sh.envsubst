@@ -18,4 +18,4 @@ exec docker run \
      -v ${DOLLAR}SOCKET_DIR:${DOLLAR}SOCKET_DIR \
      -v ${DOLLAR}VIAM_DIR:${DOLLAR}VIAM_DIR \
      $TAG \
-     sudo -u \#$(id -u) LD_PRELOAD=libjemalloc.so.2 VIAM_MODULE_DATA="$VIAM_MODULE_DATA" /opt/viam/bin/viam_mlmodelservice_triton "$@" 2>&1
+     sudo -u \#$(id -u) LD_PRELOAD=libjemalloc.so.2 VIAM_MODULE_DATA="${DOLLAR}VIAM_MODULE_DATA" /opt/viam/bin/viam_mlmodelservice_triton "$@" 2>&1
