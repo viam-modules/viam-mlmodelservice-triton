@@ -1,10 +1,6 @@
 TAG ?= ghcr.io/USER/REPO:0.0.0
 
-viam-mlmodelservice-triton.sh: bin/viam-mlmodelservice-triton.sh.envsubst
-	cat $< | TAG=$(TAG) DOLLAR=$$ envsubst > $@
-	chmod +x $@
-
-first_run.sh: bin/first_run.sh.envsubst
+%.sh: bin/%.sh.envsubst
 	cat $< | TAG=$(TAG) DOLLAR=$$ envsubst > $@
 	chmod +x $@
 
