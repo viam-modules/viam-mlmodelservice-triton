@@ -4,7 +4,11 @@ viam-mlmodelservice-triton.sh: bin/viam-mlmodelservice-triton.sh.envsubst
 	cat $< | TAG=$(TAG) DOLLAR=$$ envsubst > $@
 	chmod +x $@
 
-module.tar.gz: viam-mlmodelservice-triton.sh
+first_run.sh: bin/first_run.sh.envsubst
+	cat $< | TAG=$(TAG) DOLLAR=$$ envsubst > $@
+	chmod +x $@
+
+module.tar.gz: viam-mlmodelservice-triton.sh first_run.sh
 	tar czf $@ $^
 
 .PHONY: module.tar.gz
