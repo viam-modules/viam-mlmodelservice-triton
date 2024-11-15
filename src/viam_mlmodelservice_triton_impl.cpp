@@ -454,7 +454,7 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
             state->model_version = 1;
         } else {
             // If the model_repository_path is specified, forbid specifying the model_path.
-            if (attributes->find("model_repository_path") != attributes->end()) {
+            if (attributes->find("model_path") != attributes->end()) {
                 std::ostringstream buffer;
                 buffer << service_name
                        << ": Both the `model_repository_path` and `model_path` are set, "
