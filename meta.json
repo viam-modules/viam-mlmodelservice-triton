@@ -10,5 +10,6 @@
       "model": "viam:mlmodelservice:triton"
     }
   ],
-  "entrypoint": "viam-mlmodelservice-triton.sh"
+  "entrypoint": "viam-mlmodelservice-triton.sh",
+  "first_run": "first_run.sh"
 }

@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euxo pipefail
+
+# The docker image is so large that we likely cannot grab the whole thing while initializing the
+# module without us getting killed and restarted. So, download the image before we even attempt to
+# start up.
+
+# We use `exec` to have this process "become" `docker pull`. That way, if viam-server tries to kill
+# us, it kills the correct process.
+exec docker pull $TAG
