@@ -394,6 +394,12 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
         std::filesystem::create_directory_symlink(*model_path_string, triton_name);
     }
 
+    static void remove_symlink_mlmodel_(const struct state_& state) {
+        std::filesystem::path directory_name =
+            std::filesystem::path(std::getenv("VIAM_MODULE_DATA")) / state.model_name;
+	std::filesystem::remove_all(directory_name);
+    }
+
     static std::shared_ptr<struct state_> reconfigure_(vsdk::Dependencies dependencies,
                                                        vsdk::ResourceConfig configuration) {
         auto state =
