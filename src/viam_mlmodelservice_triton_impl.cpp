@@ -1244,7 +1244,7 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
 
 int serve(int argc, char* argv[]) noexcept try {
     // Validate that the version of the triton server that we are
-    // running against is sufficient w.r..t the version we were built
+    // running against is sufficient w.r.t. the version we were built
     // against.
     std::uint32_t triton_version_major;
     std::uint32_t triton_version_minor;
