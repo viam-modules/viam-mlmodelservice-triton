@@ -103,6 +103,12 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
             std::lock_guard<std::mutex> lock(state_lock_);
             if (!stopped_) {
                 stopped_ = true;
+
+                // Remove any symlinks we've added to our module workspace.
+                if (!state_->model_name.empty()) {
+                    remove_symlink_mlmodel_(state_->model_name);
+                }
+
                 std::shared_ptr<struct state_> state;
                 swap(state_, state);
                 state_ready_.notify_all();
@@ -394,10 +400,11 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
         std::filesystem::create_directory_symlink(*model_path_string, triton_name);
     }
 
-    static void remove_symlink_mlmodel_(const struct state_& state) {
+    static void remove_symlink_mlmodel_(const std::string& model_name) {
         std::filesystem::path directory_name =
-            std::filesystem::path(std::getenv("VIAM_MODULE_DATA")) / state.model_name;
-	std::filesystem::remove_all(directory_name);
+            std::filesystem::path(std::getenv("VIAM_MODULE_DATA")) / model_name;
+        // Note that remove_all succeeds even if the directory it was given doesn't exist!
+        std::filesystem::remove_all(directory_name);
     }
 
     static std::shared_ptr<struct state_> reconfigure_(vsdk::Dependencies dependencies,
@@ -425,6 +432,13 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
         }
 
         const auto& attributes = state->configuration.attributes();
+
+        // If we're reconfiguring and have an old model name symlinked into our module workspace,
+        // remove it before setting up the
+        // new repo.
+        if (!state->model_name.empty()) {
+            remove_symlink_mlmodel_(state->model_name);
+        }
 
         // Pull the model name out of the configuration.
         auto model_name = attributes->find("model_name");
