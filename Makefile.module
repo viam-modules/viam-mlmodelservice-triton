@@ -24,18 +24,19 @@ container-cuda:
 	docker build . -t $(TAG) -f etc/docker/Dockerfile.nvcr-triton-containers
 
 
-# The module itself
+# The module itself. Make these targets phony so they get rebuilt even if all you change is the
+# docker tag.
 .PHONY: module-jetpack5.tar.gz module-jetpack6.tar.gz module-cuda.tar.gz
 
-module-jetpack5.tar.gz: TAG ?= $(URL)/jetpack5:$(SEMVER)
+module-jetpack5.tar.gz: SUFFIX ?= /jetpack5
 module-jetpack5.tar.gz: viam-mlmodelservice-triton.sh first_run.sh
 	tar czf $@ $^
 
-module-jetpack6.tar.gz: TAG ?= $(URL)/jetpack6:$(SEMVER)
+module-jetpack6.tar.gz: SUFFIX ?= /jetpack6
 module-jetpack6.tar.gz: viam-mlmodelservice-triton.sh first_run.sh
 	tar czf $@ $^
 
-module-cuda.tar.gz: TAG ?= $(URL)/cuda:$(SEMVER)
+module-cuda.tar.gz: SUFFIX ?= /cuda
 module-cuda.tar.gz: viam-mlmodelservice-triton.sh first_run.sh
 	tar czf $@ $^
 
