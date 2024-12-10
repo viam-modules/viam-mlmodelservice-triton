@@ -2,7 +2,9 @@ URL ?= ghcr.io/USER/REPO
 SEMVER ?= 0.0.0
 TAG ?= $(URL)$(SUFFIX):$(SEMVER)
 
-# Shell scripts built with environment variable substitution
+# Shell scripts built with environment variable substitution. These need to be declared phony, so
+# they get rebuilt even if they already exist and the only thing that has changed is $TAG.
+.PHONY: viam-mlmodelservice-triton.sh first_run.sh
 %.sh: bin/%.sh.envsubst
 	cat $< | TAG=$(TAG) DOLLAR=$$ envsubst > $@
 	chmod +x $@
