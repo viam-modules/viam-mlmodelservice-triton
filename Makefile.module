@@ -7,7 +7,7 @@ TAG ?= $(URL)$(SUFFIX):$(SEMVER)
 	cat $< | TAG=$(TAG) DOLLAR=$$ envsubst > $@
 	chmod +x $@
 
-# Docker images
+# Docker images. These should be phony because you can't see the files that get built.
 .PHONY: images image-jetpack5 image-jetpack6 image-cuda
 images: image-jetpack5 image-jetpack6 image-cuda
 
