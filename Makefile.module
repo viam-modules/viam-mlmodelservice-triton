@@ -2,6 +2,7 @@ URL ?= ghcr.io/USER/REPO
 SEMVER ?= 0.0.0
 TAG ?= $(URL)$(SUFFIX):$(SEMVER)
 
+# Shell scripts built with environment variable substitution
 %.sh: bin/%.sh.envsubst
 	cat $< | TAG=$(TAG) DOLLAR=$$ envsubst > $@
 	chmod +x $@
@@ -23,8 +24,19 @@ container-cuda:
 	docker build . -t $(TAG) -f etc/docker/Dockerfile.nvcr-triton-containers
 
 
-.PHONY: module.tar.gz
-module.tar.gz: viam-mlmodelservice-triton.sh first_run.sh
+# The module itself
+.PHONY: module-jetpack5.tar.gz module-jetpack6.tar.gz module-cuda.tar.gz
+
+module-jetpack5.tar.gz: TAG ?= $(URL)/jetpack5:$(SEMVER)
+module-jetpack5.tar.gz: viam-mlmodelservice-triton.sh first_run.sh
 	tar czf $@ $^
 
-default: containers module.tar.gz
+module-jetpack6.tar.gz: TAG ?= $(URL)/jetpack6:$(SEMVER)
+module-jetpack6.tar.gz: viam-mlmodelservice-triton.sh first_run.sh
+	tar czf $@ $^
+
+module-cuda.tar.gz: TAG ?= $(URL)/cuda:$(SEMVER)
+module-cuda.tar.gz: viam-mlmodelservice-triton.sh first_run.sh
+	tar czf $@ $^
+
+default: container-jetpack6 module-jetpack6.tar.gz
