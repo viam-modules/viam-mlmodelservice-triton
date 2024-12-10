@@ -7,20 +7,20 @@ TAG ?= $(URL)$(SUFFIX):$(SEMVER)
 	cat $< | TAG=$(TAG) DOLLAR=$$ envsubst > $@
 	chmod +x $@
 
-# Docker containers
-.PHONY: containers container-jetpack5 container-jetpack6 container-cuda
-containers: container-jetpack5 container-jetpack6 container-cuda
+# Docker images
+.PHONY: images image-jetpack5 image-jetpack6 image-cuda
+images: image-jetpack5 image-jetpack6 image-cuda
 
-container-jetpack5: SUFFIX ?= /jetpack5
-container-jetpack5:
+image-jetpack5: SUFFIX ?= /jetpack5
+image-jetpack5:
 	docker build . -t $(TAG) -f etc/docker/Dockerfile.triton-jetpack-focal
 
-container-jetpack6: SUFFIX ?= /jetpack6
-container-jetpack6:
+image-jetpack6: SUFFIX ?= /jetpack6
+image-jetpack6:
 	docker build . -t $(TAG) -f etc/docker/Dockerfile.nvcr-triton-containers --build-arg JETPACK=1
 
-container-cuda: SUFFIX ?= /cuda
-container-cuda:
+image-cuda: SUFFIX ?= /cuda
+image-cuda:
 	docker build . -t $(TAG) -f etc/docker/Dockerfile.nvcr-triton-containers
 
 
@@ -40,4 +40,4 @@ module-cuda.tar.gz: SUFFIX ?= /cuda
 module-cuda.tar.gz: viam-mlmodelservice-triton.sh first_run.sh
 	tar czf $@ $^
 
-default: container-jetpack6 module-jetpack6.tar.gz
+default: image-jetpack6 module-jetpack6.tar.gz
