@@ -2,16 +2,20 @@ URL ?= ghcr.io/USER/REPO
 SEMVER ?= 0.0.0
 TAG ?= $(URL)$(SUFFIX):$(SEMVER)
 
+
 # Shell scripts built with environment variable substitution should be declared .PHONY, because
 # they need to be rebuilt even if the only thing that's changed is the value of $(TAG). We declare
 # them in separate rules because one rule for `%.sh` doesn't work with .PHONY.
 .PHONY: viam-mlmodelservice-triton.sh first_run.sh
+
 first_run.sh: bin/first_run.sh.envsubst
 	cat $< | TAG=$(TAG) DOLLAR=$$ envsubst > $@
 	chmod +x $@
+
 viam-mlmodelservice-triton.sh: bin/viam-mlmodelservice-triton.sh.envsubst
 	cat $< | TAG=$(TAG) DOLLAR=$$ envsubst > $@
 	chmod +x $@
+
 
 # Docker images. These should be phony because you can't see the files that get built.
 .PHONY: images image-jetpack5 image-jetpack6 image-cuda
@@ -33,7 +37,6 @@ image-cuda:
 # The module itself. Make this target phony because we need to rebuild the files even if the only
 # thing that changes is the TAG.
 .PHONY: module.tar.gz
-
 module.tar.gz: viam-mlmodelservice-triton.sh first_run.sh
 	tar czf $@ $^
 
