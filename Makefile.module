@@ -2,10 +2,14 @@ URL ?= ghcr.io/USER/REPO
 SEMVER ?= 0.0.0
 TAG ?= $(URL)$(SUFFIX):$(SEMVER)
 
-# Shell scripts built with environment variable substitution. These need to be declared phony, so
-# they get rebuilt even if they already exist and the only thing that has changed is $TAG.
+# Shell scripts built with environment variable substitution should be declared .PHONY, because
+# they need to be rebuilt even if the only thing that's changed is the value of $(TAG). We declare
+# them in separate rules because one rule for `%.sh` doesn't work with .PHONY.
 .PHONY: viam-mlmodelservice-triton.sh first_run.sh
-%.sh: bin/%.sh.envsubst
+first_run.sh: bin/first_run.sh.envsubst
+	cat $< | TAG=$(TAG) DOLLAR=$$ envsubst > $@
+	chmod +x $@
+viam-mlmodelservice-triton.sh: bin/viam-mlmodelservice-triton.sh.envsubst
 	cat $< | TAG=$(TAG) DOLLAR=$$ envsubst > $@
 	chmod +x $@
 
