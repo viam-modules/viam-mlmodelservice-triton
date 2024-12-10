@@ -11,16 +11,16 @@ TAG ?= $(URL)$(SUFFIX):$(SEMVER)
 .PHONY: containers container-jetpack5 container-jetpack6 container-cuda
 containers: container-jetpack5 container-jetpack6 container-cuda
 
+container-jetpack5: SUFFIX ?= /jetpack5
 container-jetpack5:
-	TAG ?= $(URL)/jetpack5:$(SEMVER)
 	docker build . -t $(TAG) -f etc/docker/Dockerfile.triton-jetpack-focal
 
+container-jetpack6: SUFFIX ?= /jetpack6
 container-jetpack6:
-	TAG ?= $(URL)/jetpack6:$(SEMVER)
 	docker build . -t $(TAG) -f etc/docker/Dockerfile.nvcr-triton-containers --build-arg JETPACK=1
 
+container-cuda: SUFFIX ?= /cuda
 container-cuda:
-	TAG ?= $(URL)/cuda:$(SEMVER)
 	docker build . -t $(TAG) -f etc/docker/Dockerfile.nvcr-triton-containers
 
 
