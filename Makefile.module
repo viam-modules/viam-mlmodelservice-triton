@@ -24,20 +24,24 @@ image-cuda:
 	docker build . -t $(TAG) -f etc/docker/Dockerfile.nvcr-triton-containers
 
 
-# The module itself. Make these targets phony so they get rebuilt even if all you change is the
-# docker tag.
-.PHONY: module-jetpack5.tar.gz module-jetpack6.tar.gz module-cuda.tar.gz
+# The module itself. Make this target phony because we need to rebuild the files even if the only
+# thing that changes is the TAG.
+.PHONY: module.tar.gz
 
-module-jetpack5.tar.gz: SUFFIX ?= /jetpack5
-module-jetpack5.tar.gz: viam-mlmodelservice-triton.sh first_run.sh
+module.tar.gz: viam-mlmodelservice-triton.sh first_run.sh
 	tar czf $@ $^
 
-module-jetpack6.tar.gz: SUFFIX ?= /jetpack6
-module-jetpack6.tar.gz: viam-mlmodelservice-triton.sh first_run.sh
-	tar czf $@ $^
+# Helpers for building the module easily. These targets are phony because the files built don't
+# match the target names (it's always module.tar.gz).
+.PHONY: module-jetpack5 module-jetpack6 module-cuda
 
-module-cuda.tar.gz: SUFFIX ?= /cuda
-module-cuda.tar.gz: viam-mlmodelservice-triton.sh first_run.sh
-	tar czf $@ $^
+module-jetpack5: SUFFIX ?= /jetpack5
+module-jetpack5: module.tar.gz
 
-default: image-jetpack6 module-jetpack6.tar.gz
+module-jetpack6: SUFFIX ?= /jetpack6
+module-jetpack6: module.tar.gz
+
+module-cuda: SUFFIX ?= /cuda
+module-cuda: module.tar.gz
+
+default: image-jetpack6 module-jetpack6
