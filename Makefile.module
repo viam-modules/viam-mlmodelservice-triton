@@ -1,4 +1,4 @@
-URL ?= ghcr.io/USER/REPO
+URL ?= local-triton-build
 SEMVER ?= 0.0.0
 TAG ?= $(URL)$(SUFFIX):$(SEMVER)
 
