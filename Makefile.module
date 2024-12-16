@@ -1,10 +1,54 @@
-TAG ?= ghcr.io/USER/REPO:0.0.0
+URL ?= local-triton-build
+SEMVER ?= 0.0.0
+TAG ?= $(URL)$(SUFFIX):$(SEMVER)
 
-%.sh: bin/%.sh.envsubst
+
+# Shell scripts built with environment variable substitution should be declared .PHONY, because
+# they need to be rebuilt even if the only thing that's changed is the value of $(TAG). We declare
+# them in separate rules because one rule for `%.sh` doesn't work with .PHONY.
+.PHONY: viam-mlmodelservice-triton.sh first_run.sh
+
+first_run.sh: bin/first_run.sh.envsubst
 	cat $< | TAG=$(TAG) DOLLAR=$$ envsubst > $@
 	chmod +x $@
 
+viam-mlmodelservice-triton.sh: bin/viam-mlmodelservice-triton.sh.envsubst
+	cat $< | TAG=$(TAG) DOLLAR=$$ envsubst > $@
+	chmod +x $@
+
+
+# Docker images. These should be phony because you can't see the files that get built.
+.PHONY: images image-jetpack5 image-jetpack6 image-cuda
+images: image-jetpack5 image-jetpack6 image-cuda
+
+image-jetpack5: SUFFIX ?= /jetpack5
+image-jetpack5:
+	docker build . -t $(TAG) -f etc/docker/Dockerfile.triton-jetpack-focal
+
+image-jetpack6: SUFFIX ?= /jetpack6
+image-jetpack6:
+	docker build . -t $(TAG) -f etc/docker/Dockerfile.nvcr-triton-containers --build-arg JETPACK=1
+
+image-cuda: SUFFIX ?= /cuda
+image-cuda:
+	docker build . -t $(TAG) -f etc/docker/Dockerfile.nvcr-triton-containers
+
+
+# The module itself.
 module.tar.gz: viam-mlmodelservice-triton.sh first_run.sh
 	tar czf $@ $^
 
-.PHONY: module.tar.gz
+# Helpers for building the module easily. These targets are phony because the files built don't
+# match the target names (it's always module.tar.gz).
+.PHONY: module-jetpack5 module-jetpack6 module-cuda
+
+module-jetpack5: SUFFIX ?= /jetpack5
+module-jetpack5: module.tar.gz
+
+module-jetpack6: SUFFIX ?= /jetpack6
+module-jetpack6: module.tar.gz
+
+module-cuda: SUFFIX ?= /cuda
+module-cuda: module.tar.gz
+
+default: image-jetpack6 module-jetpack6
