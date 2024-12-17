@@ -43,7 +43,7 @@ Navigate to the **Config** tab of your robot’s page in [the Viam app](https://
 Click on the **Services** subtab and click **Create service**.
 Select **ML Model**, then search for the `mlmodelservice:triton` model.
 Click **Add module**.
-Give your resource a name of your choice and click **Create**. 
+Give your resource a name of your choice and click **Create**.
 
 First, make sure your module version is correct.
 Select **Raw JSON** mode.
@@ -60,7 +60,7 @@ Your `"modules"` array should appear like the following:
 Replace the value of the "version" field with the value you determined above with the docker pull command.
 Save your config.
 
-> [!NOTE]  
+> [!NOTE]
 > For more information, see [Configure a Robot](https://docs.viam.com/manage/configuration/).
 
 Now, to configure your machine's **Attributes**, you have two options.
