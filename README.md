@@ -8,32 +8,31 @@ Configure this ML Model service as a modular resource on your machine with a [Je
 
 ## Requirements
 
-A NVIDIA Jetson Orin board with the following installed:
+A NVIDIA Jetson Orin board or other machine with an NVIDIA GPU with the following installed:
 
-1. [Jetpack 5](https://developer.nvidia.com/embedded/jetpack)
+1. [CUDA](https://developer.nvidia.com/cuda-toolkit), [Jetpack 5, or Jetpack 6](https://developer.nvidia.com/embedded/jetpack)
 2. NVIDIA Container Runtime
 
-Run the following to install `nvidia-jetpack` and `nvidia-container` on your robot's computer:
+On a Jetson Orin machine, the following to install `nvidia-jetpack` and `nvidia-container` on your robot's computer:
 
 ```sh { class="command-line" data-prompt="$"}
 sudo apt-get install nvidia-jetpack nvidia-container
 ```
-
-Pull the triton module docker container:
-
-```sh { class="command-line" data-prompt="$"}
-docker pull ghcr.io/viam-modules/viam-mlmodelservice-triton:latest
-```
-
-Examine the output to find the exact tag associated with latest.
-Use this as `"version"` in [configuration](https://docs.viam.com/registry/examples/triton/#configuration).
 
 Then, if you haven't done so already, create a new robot in [the Viam app](https://app.viam.com).
 [Install `viam-server` on the board](https://docs.viam.com/get-started/installation/prepare/jetson-agx-orin-setup/) and connect to the robot.
 
 ## Build and Run
 
-To use this module on your machine, follow these instructions:
+To build this as a local module on your machine, run one of these three lines:
+```sh { class="command-line" data-prompt="$"}
+# Only run one of these! Which one to use depends on what platform you're on.
+make -f Makefile.module image-jetpack5 module-jetpack5
+make -f Makefile.module image-jetpack6 module-jetpack6
+make -f Makefile.module image-cuda     module-cuda
+```
+Then, set up your robot so that the local module points to the `module.tar.gz` file in the root
+directory of this repo.
 
 ## Configure your Triton ML Model Service
 
