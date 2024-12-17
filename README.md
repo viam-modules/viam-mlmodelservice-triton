@@ -70,11 +70,13 @@ Click on the **Select ML model** field and select a model from the dropdown that
 Your ML model service will automatically be configured with this model.
 You can explore the available models in the [Registry](https://app.viam.com/registry).
 
-To deploy an existing model on your machine, you must first [create a model repository](#create-a-repository-to-store-the-ml-model-to-deploy) on your machine:
+To deploy an existing model on your machine, you can either 1) specify the name of a model downloaded from the Viam registry, or 2) [create your own local model repository](#create-a-repository-to-store-the-ml-model-to-deploy) on your machine.
 
-### Create a repository to store the ML model to deploy
+### Option 1: use a model from the Viam registry
 
-Currently, you must manually create a Triton [model repository](https://docs.nvidia.com/deeplearning/triton-inference-server/user-guide/docs/user_guide/model_repository.html).
+### Option 2: create a repository to store the ML model to deploy
+
+You can manually create a Triton [model repository](https://docs.nvidia.com/deeplearning/triton-inference-server/user-guide/docs/user_guide/model_repository.html).
 On your robot's Jetson computer, create a [structured repository](https://docs.nvidia.com/deeplearning/triton-inference-server/user-guide/docs/user_guide/model_repository.html) under the `~/.viam` directory.
 The exact subpath under `~/.viam` does not matter.
 
