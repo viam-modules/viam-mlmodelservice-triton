@@ -22,7 +22,7 @@ sudo apt-get install nvidia-jetpack nvidia-container
 Then, if you haven't done so already, create a new robot in [the Viam app](https://app.viam.com).
 [Install `viam-server` on the board](https://docs.viam.com/get-started/installation/prepare/jetson-agx-orin-setup/) and connect to the robot.
 
-## Build and Run
+## Build and Run Locally
 
 To build this as a local module on your machine, run one of these three lines:
 ```sh { class="command-line" data-prompt="$"}
@@ -47,7 +47,7 @@ Give your resource a name of your choice and click **Create**.
 
 First, make sure your module version is correct.
 Select **Raw JSON** mode.
-Your `"modules"` array should appear like the following:
+Your `"modules"` array should have an entry like the following:
 
 ```json
 {
@@ -57,13 +57,13 @@ Your `"modules"` array should appear like the following:
   "version": "0.4.0"
 }
 ```
-Replace the value of the "version" field with the value you determined above with the docker pull command.
+(The version used might differ from this example.)
 Save your config.
 
 > [!NOTE]
 > For more information, see [Configure a Robot](https://docs.viam.com/manage/configuration/).
 
-Now, to configure your machine's **Attributes**, you have two options.
+Now, to configure the service's **Attributes**, you have two options.
 You can use a TensorFlow or PyTorch model from the [Registry](https://app.viam.com/registry), or you can load an existing TensorFlow or PyTorch model on your machine.
 To deploy a model from the Registry, navigate back to the **Config** tab of your machine in the Viam app and switch back to **Builder** mode.
 Click on the **Select ML model** field and select a model from the dropdown that appears.
