@@ -76,8 +76,10 @@ To deploy an existing model on your machine, you can either 1) specify the name 
 
 You can download an ML model from Viam's registry. Head to
 https://app.viam.com/registry?type=ML+Model to see the available models. Once you've added this
-MLModel service to your robot's config, you can select the model you want to use from its section
-in the builder tab. Your `model_path` should end up looking something like this:
+Triton MLModel service to your robot's config, you can select the model you want to use from its
+section in the builder tab. To clarify: you don't add the model with the `+` symbol in the top-left
+of the builder page; you add it with the `select model` button in the RC card for the Triton
+service. Your `model_path` should end up looking something like this:
 ```
 "model_path": "${packages.ml_model.TF2-EfficientDetD0-COCO}",
 ```
