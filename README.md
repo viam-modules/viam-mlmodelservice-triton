@@ -13,7 +13,7 @@ A NVIDIA Jetson Orin board or other machine with an NVIDIA GPU with the followin
 1. [CUDA](https://developer.nvidia.com/cuda-toolkit), [Jetpack 5, or Jetpack 6](https://developer.nvidia.com/embedded/jetpack)
 2. NVIDIA Container Runtime
 
-On a Jetson Orin machine, the following to install `nvidia-jetpack` and `nvidia-container` on your robot's computer:
+On a Jetson Orin machine, run the following to install `nvidia-jetpack` and `nvidia-container` on your robot's computer:
 
 ```sh { class="command-line" data-prompt="$"}
 sudo apt-get install nvidia-jetpack nvidia-container
