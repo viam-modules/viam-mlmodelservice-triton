@@ -74,6 +74,34 @@ To deploy an existing model on your machine, you can either 1) specify the name 
 
 ### Option 1: use a model from the Viam registry
 
+You can download an ML model from Viam's registry. Head to
+https://app.viam.com/registry?type=ML+Model to see the available models. Once you've added this
+MLModel service to your robot's config, you can select the model you want to use from its section
+in the builder tab. Your `model_path` should end up looking something like this:
+```
+"model_path": "${packages.ml_model.TF2-EfficientDetD0-COCO}",
+```
+where the `TF2-EfficientDetD0-COCO` is replaced with the name of the model you want to use instead.
+You should also name the model, and add in the name remappings mentioned in the registry entry for
+your model, such as:
+```
+{
+  "model_path": "${packages.ml_model.TF2-EfficientDetD0-COCO}",
+  "model_name": "coco",
+  "tensor_name_remappings": {
+    "outputs": {
+      "output_1": "score",
+      "output_2": "category",
+      "output_3": "n_detections",
+      "output_0": "location"
+    },
+    "inputs": {
+      "images": "image"
+    }
+  }
+}
+```
+
 ### Option 2: create a repository to store the ML model to deploy
 
 You can manually create a Triton [model repository](https://docs.nvidia.com/deeplearning/triton-inference-server/user-guide/docs/user_guide/model_repository.html).
