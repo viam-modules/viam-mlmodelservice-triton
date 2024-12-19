@@ -22,6 +22,10 @@ sudo apt-get install nvidia-jetpack nvidia-container
 Then, if you haven't done so already, create a new robot in [the Viam app](https://app.viam.com).
 [Install `viam-server` on the board](https://docs.viam.com/get-started/installation/prepare/jetson-agx-orin-setup/) and connect to the robot.
 
+## Install from Viam registry
+
+The module is named `viam:mlmodelservice-triton-jetpack`. Once you've got the module on your smart machine, the service is named `viam:mlmodelservice:triton`. It implements the [`MLModelService` interface](https://github.com/viamrobotics/api/blob/main/proto/viam/service/mlmodel/v1/mlmodel.proto): the main way to interact with it is with the `Infer` RPC, though you can also get info about the service with the `Metadata` RPC. You probably don't need to send RPCs to it directly, though: instead, have a Vision Service send things to it, and you interact with the Vision Service.
+
 ## Build and Run Locally
 
 To build this as a local module on your machine, run one of these three lines:
