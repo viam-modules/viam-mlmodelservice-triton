@@ -52,3 +52,7 @@ module-cuda: SUFFIX ?= /cuda
 module-cuda: module.tar.gz
 
 default: image-jetpack6 module-jetpack6
+
+.PHONY: lint
+lint:
+	docker build . -f etc/docker/Dockerfile.nvcr-triton-containers --target linter
