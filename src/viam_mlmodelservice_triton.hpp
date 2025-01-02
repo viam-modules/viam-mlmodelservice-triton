@@ -85,7 +85,7 @@ struct shim {
 
 shim the_shim;
 
-// Declare this here so we can use it, but the implementation relies on subsequent specializaitons.
+// Declare this here so we can use it, but the implementation relies on subsequent specializations.
 template <typename Stdex = std::runtime_error, typename... Args>
 [[gnu::warn_unused_result]] constexpr auto call(TRITONSERVER_Error* (*fn)(Args... args)) noexcept;
 
