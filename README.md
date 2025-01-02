@@ -10,13 +10,19 @@ Configure this ML Model service as a modular resource on your machine with a [Je
 
 A NVIDIA Jetson Orin board or other machine with an NVIDIA GPU with the following installed:
 
-1. [CUDA](https://developer.nvidia.com/cuda-toolkit), [Jetpack 5, or Jetpack 6](https://developer.nvidia.com/embedded/jetpack)
-2. NVIDIA Container Runtime
+1. [Jetpack 5 or Jetpack 6](https://developer.nvidia.com/embedded/jetpack) (for machines that support Jetpack), or [CUDA](https://developer.nvidia.com/cuda-toolkit) (for any other machine with an NVIDIA GPU)
+2. The NVIDIA Container Runtime
 
-On a Jetson Orin machine, run the following to install `nvidia-jetpack` and `nvidia-container` on your robot's computer:
+You'll need to install NVIDIA's Docker environment:
 
 ```sh { class="command-line" data-prompt="$"}
-sudo apt-get install nvidia-jetpack nvidia-container
+sudo apt-get install nvidia-container
+```
+
+On a Jetson Orin machine, you'll also need to install Jetpack:
+
+```sh { class="command-line" data-prompt="$"}
+sudo apt-get install nvidia-jetpack
 ```
 
 Then, if you haven't done so already, create a new robot in [the Viam app](https://app.viam.com).
