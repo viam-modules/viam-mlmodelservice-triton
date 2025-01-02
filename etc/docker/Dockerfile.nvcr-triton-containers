@@ -80,7 +80,7 @@ RUN apt-get -y update && apt-get -y --no-install-recommends install \
     libprotobuf23
 
 # Make an image to run a linter
-FROM build as linter
+FROM build AS linter
 RUN apt-get install -y clang-tidy
 ADD . ${HOME}/opt/src/viam-mlmodelservice-triton
 WORKDIR ${HOME}/opt/src/viam-mlmodelservice-triton/src
