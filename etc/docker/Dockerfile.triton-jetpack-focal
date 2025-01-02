@@ -150,7 +150,7 @@ FROM build as linter
 RUN apt-get install -y clang-tidy
 ADD . ${HOME}/opt/src/viam-mlmodelservice-triton
 WORKDIR ${HOME}/opt/src/viam-mlmodelservice-triton/src
-RUN clang-tidy -p build viam_mlmodelservice_triton.cpp
+RUN clang-tidy -p build viam_mlmodelservice_triton.cpp -- -I/opt/tritonserver/include
 
 FROM runtime AS deploy
 ENV DEBIAN_FRONTEND=noninteractive
