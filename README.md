@@ -8,32 +8,29 @@ Configure this ML Model service as a modular resource on your machine with a [Je
 
 ## Requirements
 
-A NVIDIA Jetson Orin board with the following installed:
+An NVIDIA Jetson Orin board or other machine with an NVIDIA GPU with the following installed:
 
-1. [Jetpack 5](https://developer.nvidia.com/embedded/jetpack)
-2. NVIDIA Container Runtime
-
-Run the following to install `nvidia-jetpack` and `nvidia-container` on your robot's computer:
-
-```sh { class="command-line" data-prompt="$"}
-sudo apt-get install nvidia-jetpack nvidia-container
-```
-
-Pull the triton module docker container:
-
-```sh { class="command-line" data-prompt="$"}
-docker pull ghcr.io/viam-modules/viam-mlmodelservice-triton:latest
-```
-
-Examine the output to find the exact tag associated with latest.
-Use this as `"version"` in [configuration](https://docs.viam.com/registry/examples/triton/#configuration).
+1. The NVIDIA Container Runtime (which can be installed with `sudo apt-get install nvidia-container`)
+2. On machines that support it, [Jetpack 5 or Jetpack 6](https://developer.nvidia.com/embedded/jetpack) (which can be installed with `sudo apt-get install nvidia-jetpack`)
 
 Then, if you haven't done so already, create a new robot in [the Viam app](https://app.viam.com).
 [Install `viam-server` on the board](https://docs.viam.com/get-started/installation/prepare/jetson-agx-orin-setup/) and connect to the robot.
 
-## Build and Run
+## Install from Viam registry
 
-To use this module on your machine, follow these instructions:
+The module is named `viam:mlmodelservice-triton-jetpack`. Once you've got the module on your smart machine, the service is named `viam:mlmodelservice:triton`. It implements the [`MLModelService` interface](https://github.com/viamrobotics/api/blob/main/proto/viam/service/mlmodel/v1/mlmodel.proto): the main way to interact with it is with the `Infer` RPC, though you can also get info about the service with the `Metadata` RPC. You probably don't need to send RPCs to it directly, though: instead, have a Vision Service send things to it, and you interact with the Vision Service.
+
+## Build and Run Locally
+
+To build this as a local module on your machine, run one of these three lines:
+```sh { class="command-line" data-prompt="$"}
+# Only run one of these! Which one to use depends on what platform you're on.
+make -f Makefile.module image-jetpack5 module-jetpack5
+make -f Makefile.module image-jetpack6 module-jetpack6
+make -f Makefile.module image-cuda     module-cuda
+```
+Then, set up your robot so that the local module points to the `module.tar.gz` file in the root
+directory of this repo.
 
 ## Configure your Triton ML Model Service
 
@@ -44,11 +41,11 @@ Navigate to the **Config** tab of your robot’s page in [the Viam app](https://
 Click on the **Services** subtab and click **Create service**.
 Select **ML Model**, then search for the `mlmodelservice:triton` model.
 Click **Add module**.
-Give your resource a name of your choice and click **Create**. 
+Give your resource a name of your choice and click **Create**.
 
 First, make sure your module version is correct.
 Select **Raw JSON** mode.
-Your `"modules"` array should appear like the following:
+Your `"modules"` array should have an entry like the following:
 
 ```json
 {
@@ -58,24 +55,56 @@ Your `"modules"` array should appear like the following:
   "version": "0.4.0"
 }
 ```
-Replace the value of the "version" field with the value you determined above with the docker pull command.
+(The version used might differ from this example.)
 Save your config.
 
-> [!NOTE]  
+> [!NOTE]
 > For more information, see [Configure a Robot](https://docs.viam.com/manage/configuration/).
 
-Now, to configure your machine's **Attributes**, you have two options.
+Now, to configure the service's **Attributes**, you have two options.
 You can use a TensorFlow or PyTorch model from the [Registry](https://app.viam.com/registry), or you can load an existing TensorFlow or PyTorch model on your machine.
 To deploy a model from the Registry, navigate back to the **Config** tab of your machine in the Viam app and switch back to **Builder** mode.
 Click on the **Select ML model** field and select a model from the dropdown that appears.
 Your ML model service will automatically be configured with this model.
 You can explore the available models in the [Registry](https://app.viam.com/registry).
 
-To deploy an existing model on your machine, you must first [create a model repository](#create-a-repository-to-store-the-ml-model-to-deploy) on your machine:
+To deploy an existing model on your machine, you can either 1) specify the name of a model downloaded from the Viam registry, or 2) [create your own local model repository](#create-a-repository-to-store-the-ml-model-to-deploy) on your machine.
 
-### Create a repository to store the ML model to deploy
+### Option 1: use a model from the Viam registry
 
-Currently, you must manually create a Triton [model repository](https://docs.nvidia.com/deeplearning/triton-inference-server/user-guide/docs/user_guide/model_repository.html).
+You can download an ML model from Viam's registry. Head to
+https://app.viam.com/registry?type=ML+Model to see the available models. Once you've added this
+Triton MLModel service to your robot's config, you can select the model you want to use from its
+section in the builder tab. To clarify: you don't add the model with the `+` symbol in the top-left
+of the builder page; you add it with the `select model` button in the RC card for the Triton
+service. Your `model_path` should end up looking something like this:
+```
+"model_path": "${packages.ml_model.TF2-EfficientDetD0-COCO}",
+```
+where the `TF2-EfficientDetD0-COCO` is replaced with the name of the model you want to use instead.
+You should also name the model, and add in the name remappings mentioned in the registry entry for
+your model, such as:
+```
+{
+  "model_path": "${packages.ml_model.TF2-EfficientDetD0-COCO}",
+  "model_name": "coco",
+  "tensor_name_remappings": {
+    "outputs": {
+      "output_1": "score",
+      "output_2": "category",
+      "output_3": "n_detections",
+      "output_0": "location"
+    },
+    "inputs": {
+      "images": "image"
+    }
+  }
+}
+```
+
+### Option 2: create a repository to store the ML model to deploy
+
+You can manually create a Triton [model repository](https://docs.nvidia.com/deeplearning/triton-inference-server/user-guide/docs/user_guide/model_repository.html).
 On your robot's Jetson computer, create a [structured repository](https://docs.nvidia.com/deeplearning/triton-inference-server/user-guide/docs/user_guide/model_repository.html) under the `~/.viam` directory.
 The exact subpath under `~/.viam` does not matter.
 
@@ -99,11 +128,10 @@ $ tree ~/.viam
             │       └── variables
             │           ├── variables.data-00000-of-00001
             │           └── variables.index
-            └── config.pbext
+            └── config.pbtxt
 ```
 
-The `config.pbext` file must exist, but at least for TensorFlow models it can be empty.
-For other types of models, please consult the [Triton Server model repository documentation](https://docs.nvidia.com/deeplearning/triton-inference-server/user-guide/docs/user_guide/model_repository.html) for details on the correct contents of the `config.pbext` file.
+The `config.pbtxt` is usually optional; see the [Triton model configuration documentation](https://docs.nvidia.com/deeplearning/triton-inference-server/user-guide/docs/user_guide/model_configuration.html) and [Triton Server model repository documentation](https://docs.nvidia.com/deeplearning/triton-inference-server/user-guide/docs/user_guide/model_repository.html) for details on the correct contents of the `config.pbtxt` file.
 The version here is `1` but it can be any positive integer.
 Newer versions will be preferred by default.
 
