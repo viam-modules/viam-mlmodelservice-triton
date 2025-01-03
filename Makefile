@@ -59,4 +59,4 @@ lint:
     # very slow because it compiles protocol buffers from source before it's able to lint anything.
     # So, we only lint in the CUDA container, and assume things carry over to other build
     # environments.
-	docker build . -f etc/docker/Dockerfile.nvcr-triton-containers --target linter
+    docker build . -f etc/docker/Dockerfile.nvcr-triton-containers --target linter
