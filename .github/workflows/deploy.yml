@@ -78,7 +78,7 @@ jobs:
     - uses: actions/checkout@v3
     - name: build
       run: |
-        TAG=${{ env.DOCKER_TAG }}/${{ matrix.platform.docker_suffix }}:$VERSION make -f Makefile.module module.tar.gz
+        TAG=${{ env.DOCKER_TAG }}/${{ matrix.platform.docker_suffix }}:$VERSION make module.tar.gz
     - uses: viamrobotics/upload-module@v1
       if: github.event_name == 'release'
       with:
