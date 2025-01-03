@@ -145,10 +145,8 @@ RUN \
     cmake --build build --target install -- -v && \
     cmake --install build --prefix /opt/viam
 
-# Make an image to run a linter
 FROM build AS linter
 RUN apt-get install -y clang-tidy
-ADD . ${HOME}/opt/src/viam-mlmodelservice-triton
 WORKDIR ${HOME}/opt/src/viam-mlmodelservice-triton/src
 RUN clang-tidy -p build *.cpp *.hpp -- -I/opt/tritonserver/include
 

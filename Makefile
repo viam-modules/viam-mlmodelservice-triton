@@ -55,8 +55,8 @@ default: image-jetpack6 module-jetpack6
 
 .PHONY: lint
 lint:
-    # NOTE: although there is a linter target in the Jetpack 5 dockerfile, too, running it is often
-    # very slow because it compiles protocol buffers from source before it's able to lint anything.
-    # So, we only lint in the CUDA container, and assume things carry over to other build
-    # environments.
-    docker build . -f etc/docker/Dockerfile.nvcr-triton-containers --target linter
+	# NOTE: although there is a linter target in the Jetpack 5 dockerfile, too, running it is often
+	# very slow because it compiles protocol buffers from source before it's able to lint anything.
+	# So, we only lint in the CUDA container, and assume things carry over to other build
+	# environments.
+	docker build . -f etc/docker/Dockerfile.nvcr-triton-containers --target linter

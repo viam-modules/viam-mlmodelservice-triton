@@ -78,10 +78,8 @@ RUN apt-get -y update && apt-get -y --no-install-recommends install \
     libgrpc++1 \
     libprotobuf23
 
-# Make an image to run a linter
 FROM build AS linter
 RUN apt-get install -y clang-tidy
-ADD . ${HOME}/opt/src/viam-mlmodelservice-triton
 WORKDIR ${HOME}/opt/src/viam-mlmodelservice-triton/src
 RUN clang-tidy -p build *.cpp *.hpp -- -I/opt/tritonserver/include
 
