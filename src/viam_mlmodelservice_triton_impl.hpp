@@ -16,10 +16,7 @@ namespace viam {
 namespace mlmodelservice {
 namespace triton {
 
-constexpr char kDefaultBackendDirectory[] =
-    "@VIAM_MLMODELSERVICE_TRITON_TRITONSERVER_ROOT@"
-    "/"
-    "backends";
+constexpr char kDefaultBackendDirectory[] = "/opt/tritonserver/backends";
 
 }  // namespace triton
 }  // namespace mlmodelservice

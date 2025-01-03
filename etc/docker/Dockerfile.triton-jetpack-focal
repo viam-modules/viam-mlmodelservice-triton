@@ -140,7 +140,6 @@ WORKDIR ${HOME}/opt/src/viam-mlmodelservice-triton
 RUN \
     cmake -S . -B build -G Ninja \
       -DCMAKE_EXPORT_COMPILE_COMMANDS=on \
-      -DVIAM_MLMODELSERVICE_TRITON_TRITONSERVER_ROOT=/opt/tritonserver \
       -DCMAKE_BUILD_TYPE=RelWithDebInfo \
       -DCMAKE_PREFIX_PATH=/opt/viam && \
     cmake --build build --target install -- -v && \
