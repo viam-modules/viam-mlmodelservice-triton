@@ -25,9 +25,9 @@ The module is named `viam:mlmodelservice-triton-jetpack`. Once you've got the mo
 To build this as a local module on your machine, run one of these three lines:
 ```sh { class="command-line" data-prompt="$"}
 # Only run one of these! Which one to use depends on what platform you're on.
-make -f Makefile.module image-jetpack5 module-jetpack5
-make -f Makefile.module image-jetpack6 module-jetpack6
-make -f Makefile.module image-cuda     module-cuda
+make image-jetpack5 module-jetpack5
+make image-jetpack6 module-jetpack6
+make image-cuda     module-cuda
 ```
 Then, set up your robot so that the local module points to the `module.tar.gz` file in the root
 directory of this repo.

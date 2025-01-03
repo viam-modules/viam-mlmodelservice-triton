@@ -123,8 +123,9 @@ RUN cd ${HOME}/opt/src && \
     PATH=/opt/viam/bin:$PATH cmake --build build --target install -- -v && \
     cmake --install build --prefix /opt/viam
 
-# Download and install the jetpack build of TritonServer and install it to /opt/tritonserver
-RUN curl -L https://github.com/triton-inference-server/server/releases/download/v2.34.0/tritonserver2.34.0-jetpack5.1.tgz | tar xfz - -C /opt/tritonserver
+# Download the jetpack build of TritonServer and install it to /opt, thus populating
+# /opt/tritonserver (and /opt/clients, which we don't use).
+RUN curl -L https://github.com/triton-inference-server/server/releases/download/v2.34.0/tritonserver2.34.0-jetpack5.1.tgz | tar xfz - -C /opt
 # Fixup inconsistent permissions issues in triton tarball
 RUN chmod -R oug+rX /opt/tritonserver/
 
@@ -135,15 +136,19 @@ ENV DEBIAN_FRONTEND=noninteractive
 # Build and install the Viam Triton MLModelService from our
 # local state against the C++ SDK and Triton Server
 ADD . ${HOME}/opt/src/viam-mlmodelservice-triton
+WORKDIR ${HOME}/opt/src/viam-mlmodelservice-triton
 RUN \
-    cd ${HOME}/opt/src/viam-mlmodelservice-triton && \
     cmake -S . -B build -G Ninja \
-      -DVIAM_MLMODELSERVICE_TRITON_TRITONSERVER_ROOT=/opt/tritonserver/tritonserver \
+      -DCMAKE_EXPORT_COMPILE_COMMANDS=on \
       -DCMAKE_BUILD_TYPE=RelWithDebInfo \
       -DCMAKE_PREFIX_PATH=/opt/viam && \
     cmake --build build --target install -- -v && \
     cmake --install build --prefix /opt/viam
 
+FROM build AS linter
+RUN apt-get install -y clang-tidy
+WORKDIR ${HOME}/opt/src/viam-mlmodelservice-triton/src
+RUN clang-tidy -p build *.cpp *.hpp -- -I/opt/tritonserver/include
 
 FROM runtime AS deploy
 ENV DEBIAN_FRONTEND=noninteractive
