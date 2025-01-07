@@ -124,7 +124,7 @@ RUN cmake -S . -B build -G Ninja \
     cmake --install build --prefix /opt/viam
 
 # Download the jetpack build of TritonServer and install it to /opt, thus populating
-# /opt/tritonserver (and /opt/clients, which we don't use).
+# /opt/tritonserver.
 RUN curl -L https://github.com/triton-inference-server/server/releases/download/v2.34.0/tritonserver2.34.0-jetpack5.1.tgz | tar xfz - -C /opt
 # Fixup inconsistent permissions issues in triton tarball
 RUN chmod -R oug+rX /opt/tritonserver/
