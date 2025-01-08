@@ -81,7 +81,7 @@ RUN apt-get -y update && apt-get -y --no-install-recommends install \
 FROM build AS linter
 RUN apt-get install -y clang-tidy
 WORKDIR ${HOME}/opt/src/viam-mlmodelservice-triton/src
-RUN clang-tidy -p build *.cpp *.hpp -- -I/opt/tritonserver/include
+RUN clang-tidy -p ../build *.cpp *.hpp
 
 FROM runtime AS deploy
 ENV DEBIAN_FRONTEND=noninteractive
