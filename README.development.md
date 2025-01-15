@@ -1,9 +1,11 @@
 Initial Setup - Outside container
 
-The first part of the process is to establish a container in which you can do iterative development. This is a one time setup cost, so, while there are a few steps, you shouldn't need to repeat them too often.
+The first part of the process is to establish a container in which you can do iterative development.
+This is a one time setup cost, so, while there are a few steps, you shouldn't need to repeat them too often.
 
 
-1) Start by building the `build-deps` target against the baseline you want (jp5, jp6, cuda). In my case, I'm on JP5, so the example will use that. Give the container image some useful name to indicate that is a development base:
+1) Start by building the `build-deps` target against the baseline you want (jp5, jp6, cuda).
+In my case, I'm on JP5, so the example will use that. Give the container image some useful name to indicate that is a development base:
 
 ```
 $ docker build -f ./etc/docker/Dockerfile.triton-jetpack-focal --target build-deps . -t acm-triton-jp5-iterative
@@ -59,7 +61,7 @@ $ docker exec -it acm-triton-jp5-dev apt-get install \
 But if you used the NVCR containers it might be more like the following, since the `runtime` layer has fewer additional packages.
 
 ```
-$ docker exec --it acm-triton-jp5-dev apt-get install \
+$ docker exec -it acm-triton-jp5-dev apt-get install \
     tmux \
     \
     libboost-log1.74.0 \
@@ -69,7 +71,8 @@ $ docker exec --it acm-triton-jp5-dev apt-get install \
     libprotobuf23
 ```
 
-Finally, update the container image with these installs, so that if you need to re-create the container from the image for some reason, you can. But for now, you can just keep using the container you made.
+Finally, update the container image with these installs, so that if you need to re-create the container from the image for some reason, you can.
+But for now, you can just keep using the container you made.
 
 ```
 docker container commit acm-triton-jp5-dev acm-triton-jp5-iterative:latest
@@ -79,22 +82,26 @@ docker container commit acm-triton-jp5-dev acm-triton-jp5-iterative:latest
 4) Establish a persistent session inside the container with tmux or screen
 
 ```
-$ docker exec --it acm-triton-jp5-dev tmux -u -CC new-session -A -s dev
+$ docker exec -it acm-triton-jp5-dev tmux -u -CC new-session -A -s dev
 ```
 
 
 Iterarative Development - Inside Container
 
-Within the tmux or screen session inside the docker container, you can now do ordinary interative development. Changes to the triton module sources made outside the container will be reflected inside the container due to the bind mount. Personally, I like to go a step further and have mutagen sync my trition module sources from my development machine over to the machine where the container is running, but if you are using an IDE that supports remote work trees that's another way to go about it. That may be advantageous, as you will have a complete stack there, so things like LSP are more likely to work.
+Within the tmux or screen session inside the docker container, you can now do ordinary interative development.
+Changes to the triton module sources made outside the container will be reflected inside the container due to the bind mount.
+Personally, I like to go a step further and have mutagen sync my trition module sources from my development machine over to the machine where the container is running, but if you are using an IDE that supports remote work trees that's another way to go about it.
+That may be advantageous, as you will have a complete stack there, so things like LSP are more likely to work.
 
 1) If not currently connected, reconnect to the persistent session in the dev container:
 
 ```
-$ docker exec --it acm-triton-jp5-dev tmux -u -CC new-session -A -s dev
+$ docker exec -it acm-triton-jp5-dev tmux -u -CC new-session -A -s dev
 ```
 
 
-2) Build the Viam Triton module inside the container with cmake and Ninja. Note that the build commands here reflect the container build step for the `build` stage, adjust as necessary for your situation:
+2) Build the Viam Triton module inside the container with cmake and Ninja.
+Note that the build commands here reflect the container build step for the `build` stage, adjust as necessary for your situation:
 
 
 ```
@@ -111,7 +118,8 @@ $ cmake --install build --prefix /opt/viam
 $ cmake --build build --target install -- -v
 ```
 
-Repeat until you arrive at a state you want to try to run. If you have unit tests, run them here until you are happy with the results.
+Repeat until you arrive at a state you want to try to run.
+If you have unit tests, run them here until you are happy with the results.
 
 
 4) Reinstall the modified build to `/opt/viam`:
@@ -122,10 +130,12 @@ $ cmake --install build --prefix /opt/viam
 
 Deployment - Outside Container
 
-This section assumes that you already have a robot built and running on the device and using a stock copy of the Viam Triton Module. What we are going to do is replace the container image that the Triton Module startup script (i.e. `viam-mlmodelservice-triton.sh`) uses with a snapshot produced with the development state we currently have in our container.
+This section assumes that you already have a robot built and running on the device and using a stock copy of the Viam Triton Module.
+What we are going to do is replace the container image that the Triton Module startup script (i.e. `viam-mlmodelservice-triton.sh`) uses with a snapshot produced with the development state we currently have in our container.
 
 
-1) Find the name of the image used for the currently deployed module. This will likely look something like this:
+1) Find the name of the image used for the currently deployed module.
+This will likely look something like this:
 
 ```
 $ docker image list | grep 'viamrobotics.*triton'
