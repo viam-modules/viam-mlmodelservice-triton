@@ -25,17 +25,48 @@ $ docker run -id --name acm-triton-jp5-dev -v <path-to-triton-module-sources>:/r
 
 3) Install the packages required by the `runtime` layer (if any) from the Dockerfile you built from above in step 1 into the container, along with one of `tmux` or `screen` if you like to use those, then checkpoint the container image:
 
-Following the example here where things are using the JP5 container, the `runtime` layer doesn't have any additional packages, so this results in:
+Following the example here where things are using the JP5 container, the `runtime` layer has quite a number of things, so this will look like:
 
 
 ```
-$ docker exec --it acm-triton-jp5-dev apt-get install tmux
+$ docker exec -it acm-triton-jp5-dev apt-get install \
+    tmux \
+    \
+    libc-ares2 \
+    libre2-5 \
+    libssl1.1 \
+    zlib1g \
+    \
+    cuda-nvtx-11-4 \
+    nvidia-cuda \
+    nvidia-cudnn8 \
+    nvidia-cupva \
+    nvidia-opencv \
+    nvidia-tensorrt \
+    nvidia-vpi \
+    \
+    libarchive13 \
+    libb64-0d \
+    libopenblas0 \
+    python3 \
+    python3-pip \
+    \
+    libboost-log1.71.0 \
+    \
+    libjemalloc2
 ```
 
-But if you used the NVCR containers it might be more like the following, since the `runtime` layer has some additional packages.
+But if you used the NVCR containers it might be more like the following, since the `runtime` layer has fewer additional packages.
 
 ```
-$ docker exec --it acm-triton-jp5-dev apt-get install libboost-log1.74.0 libjemalloc2 libabsl20210324 libgrpc++1 libprotobuf23 tmux
+$ docker exec --it acm-triton-jp5-dev apt-get install \
+    tmux \
+    \
+    libboost-log1.74.0 \
+    libjemalloc2 \
+    libabsl20210324 \
+    libgrpc++1 \
+    libprotobuf23
 ```
 
 Finally, update the container image with these installs, so that if you need to re-create the container from the image for some reason, you can. But for now, you can just keep using the container you made.
@@ -104,7 +135,7 @@ ghcr.io/viamrobotics/viam-mlmodelservice-triton   0.6.0     9fc8aef5b007   5 mon
 2) Overwrite that container image with a snapshot of your container contents
 
 ```
-docker container commit acm-triton-jp5-dev ghcr.io/viamrobotics/viam-mlmodelservice-triton:0.6.0
+$ docker container commit acm-triton-jp5-dev ghcr.io/viamrobotics/viam-mlmodelservice-triton:0.6.0
 ```
 
 3) Restart the robot
