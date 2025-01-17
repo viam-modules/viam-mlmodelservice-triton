@@ -196,10 +196,7 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
 
         cxxapi::call(cxxapi::the_shim.ServerInferAsync)(
             state->server.get(), inference_request.release(), nullptr);
-
-        auto result2 = inference_future.get();
-        auto inference_response = cxxapi::take_unique(result2);
-
+        auto inference_response = cxxapi::take_unique(inference_future.get());
         auto error = cxxapi::the_shim.InferenceResponseError(inference_response.get());
         if (error) {
             std::ostringstream buffer;
@@ -312,7 +309,6 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
 
     struct metadata metadata(const vsdk::AttributeMap& extra) final {
         // Just return a copy of our metadata from leased state.
-        const auto state = lease_state_();
         return lease_state_()->metadata;
     }
 
