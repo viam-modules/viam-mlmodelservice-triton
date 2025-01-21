@@ -7,81 +7,54 @@ This is a one time setup cost, so, while there are a few steps, you shouldn't ne
 1) Start by building the `build-deps` target against the baseline you want (jp5, jp6, cuda).
 In my case, I'm on JP5, so the example will use that. Give the container image some useful name to indicate that is a development base:
 
-```
-$ docker build -f ./etc/docker/Dockerfile.triton-jetpack-focal --target build-deps . -t acm-triton-jp5-iterative
+```sh
+$ docker build -f ./etc/docker/Dockerfile.triton-jetpack-focal --target build-deps . -t acm-triton-jp5-iterative-dev
 ```
 
 If you were going to work on a JP6 board, you would probalby build that more like:
 
-```
-$ docker build -f ./etc/docker/Dockerfile.nvcr-triton-containers --target build-deps --build-arg JETPACK=1 . -t acm-triton-jp6-iterative
+```sh
+$ docker build -f ./etc/docker/Dockerfile.nvcr-triton-containers --target build-deps --build-arg JETPACK=1 . -t acm-triton-jp6-iterative-dev
 ```
 
 
 2) Start a docker container based on that image, with the Viam Triton Module sources mounted into it.
 
-```
-$ docker run -id --name acm-triton-jp5-dev -v <path-to-triton-module-sources>:/root/opt/src/viam-mlmodelservice-triton acm-triton-jp5-iterative
-```
-
-
-3) Install the packages required by the `runtime` layer (if any) from the Dockerfile you built from above in step 1 into the container, along with one of `tmux` or `screen` if you like to use those, then checkpoint the container image:
-
-Following the example here where things are using the JP5 container, the `runtime` layer has quite a number of things, so this will look like:
-
-
-```
-$ docker exec -it acm-triton-jp5-dev apt-get install \
-    tmux \
-    \
-    libc-ares2 \
-    libre2-5 \
-    libssl1.1 \
-    zlib1g \
-    \
-    cuda-nvtx-11-4 \
-    nvidia-cuda \
-    nvidia-cudnn8 \
-    nvidia-cupva \
-    nvidia-opencv \
-    nvidia-tensorrt \
-    nvidia-vpi \
-    \
-    libarchive13 \
-    libb64-0d \
-    libopenblas0 \
-    python3 \
-    python3-pip \
-    \
-    libboost-log1.71.0 \
-    \
-    libjemalloc2
+```sh
+$ docker run -id --name acm-triton-jp5-dev -v <path-to-triton-module-sources>:/root/opt/src/viam-mlmodelservice-triton acm-triton-jp5-iterative-dev
 ```
 
-But if you used the NVCR containers it might be more like the following, since the `runtime` layer has fewer additional packages.
+3) Next, create a deployment base by building the `runtime` target against the baseline you want (jp5, jp6, cuda)
 
-```
-$ docker exec -it acm-triton-jp5-dev apt-get install \
-    tmux \
-    \
-    libboost-log1.74.0 \
-    libjemalloc2 \
-    libabsl20210324 \
-    libgrpc++1 \
-    libprotobuf23
+```sh
+$ docker build -f ./etc/docker/Dockerfile.triton-jetpack-focal --target runtime . -t acm-triton-jp5-iterative-deploy
 ```
 
-Finally, update the container image with these installs, so that if you need to re-create the container from the image for some reason, you can.
-But for now, you can just keep using the container you made.
+If you were going to work on a JP6 board, you would probably build that more like:
 
+```sh
+$ docker build -f ./etc/docker/Dockerfile.nvcr-triton-containers --target build-deps --build-arg JETPACK=1 . -t acm-triton-jp6-iterative-deploy
 ```
-docker container commit acm-triton-jp5-dev acm-triton-jp5-iterative:latest
+
+4) Start a docker container based on the deploy image (no need to mount sources)
+
+```sh
+$ docker run -id --name acm-triton-jp5-deploy acm-triton-jp5-iterative-deploy
+```
+
+or
+
+```sh
+$ docker run -id --name acm-triton-jp5-deploy acm-triton-jp6-iterative-deploy
 ```
 
 
-4) Establish a persistent session inside the container with tmux or screen
 
-```
+5) Establish a persistent session inside the build container with tmux or screen
+
+```sh
+$ docker exec -it acm-triton-jp5-dev apt-get update
+$ docker exec -it acm-triton-jp5-dev apt-get install tmux
 $ docker exec -it acm-triton-jp5-dev tmux -u -CC new-session -A -s dev
 ```
 
@@ -95,7 +68,7 @@ That may be advantageous, as you will have a complete stack there, so things lik
 
 1) If not currently connected, reconnect to the persistent session in the dev container:
 
-```
+```sh
 $ docker exec -it acm-triton-jp5-dev tmux -u -CC new-session -A -s dev
 ```
 
@@ -103,8 +76,7 @@ $ docker exec -it acm-triton-jp5-dev tmux -u -CC new-session -A -s dev
 2) Build the Viam Triton module inside the container with cmake and Ninja.
 Note that the build commands here reflect the container build step for the `build` stage, adjust as necessary for your situation:
 
-
-```
+```sh
 $ cd ~/opt/src/viam-mlmodelservice-triton
 $ cmake -S . -B build -G Ninja -DVIAM_MLMODELSERVICE_TRITON_TRITONSERVER_ROOT=/opt/tritonserver/tritonserver -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_PREFIX_PATH=/opt/viam
 $ cmake --build build --target install -- -v
@@ -114,7 +86,7 @@ $ cmake --install build --prefix /opt/viam
 
 3) Make edits as needed (either inside our outside the container) and rebuild:
 
-```
+```sh
 $ cmake --build build --target install -- -v
 ```
 
@@ -123,7 +95,7 @@ If you have unit tests, run them here until you are happy with the results.
 
 
 4) Reinstall the modified build to `/opt/viam`:
-```
+```sh
 $ cmake --install build --prefix /opt/viam
 ```
 
@@ -133,21 +105,40 @@ Deployment - Outside Container
 This section assumes that you already have a robot built and running on the device and using a stock copy of the Viam Triton Module.
 What we are going to do is replace the container image that the Triton Module startup script (i.e. `viam-mlmodelservice-triton.sh`) uses with a snapshot produced with the development state we currently have in our container.
 
+1) Copy the installation from `/opt/viam` in the development container into the deployment container
 
-1) Find the name of the image used for the currently deployed module.
+```sh
+$ docker cp -a acm-triton-jp5-dev:/opt/viam - | docker cp -a - acm-triton-jp5-deploy:/opt
+```
+
+If you are using the JP5 container, you also need to copy in the Triton Server libraries.
+Note that you only need to do this
+step once for the deployment container. If you are on a JP6 or CUDA container (nvcr base), you don't need to do it at all.
+
+```sh
+$ docker cp -a acm-triton-jp5-dev:/opt/tritonserver - | docker cp -a - acm-triton-jp5-deploy:/opt
+```
+
+2) Find the name of the image used for the currently deployed module.
 This will likely look something like this:
 
-```
+```sh
 $ docker image list | grep 'viamrobotics.*triton'
 ghcr.io/viamrobotics/viam-mlmodelservice-triton   0.6.0     9fc8aef5b007   5 months ago     7.71GB
 ```
 
-2) Overwrite that container image with a snapshot of your container contents
+NOTE: I'd like to eliminate this step. Potentially, there may be a way to mount the `/opt/viam` (and, when needed for JP5, the `/opt/tritionserver`) directories from the `-dev` container into the `-deploy` container, such that writes in the `-dev` container immediately affect the running `-deploy` container, which would then get saved via the `docker commit`.
 
-```
-$ docker container commit acm-triton-jp5-dev ghcr.io/viamrobotics/viam-mlmodelservice-triton:0.6.0
+3) Overwrite that container image with a snapshot of your deployment container contents
+
+```sh
+$ docker container commit acm-triton-jp5-deploy ghcr.io/viamrobotics/viam-mlmodelservice-triton:0.6.0
 ```
 
-3) Restart the robot
+4) Restart the robot
 
 You should find that your changes are now reflected in the running module.
+
+5) Iterate
+
+To iterate, make changes to the Viam Triton Server Module sources, rerun the cmake commands to build and install, copy the results from the `-dev` container to the `-deploy` container, `commit` the results, and restart `viam-server`.
