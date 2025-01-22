@@ -85,12 +85,35 @@ struct shim {
 
 shim the_shim;
 
-// Declare this here so we can use it, but the implementation relies on subsequent specializaitons.
-template <typename Stdex = std::runtime_error, typename... Args>
-[[gnu::warn_unused_result]] constexpr auto call(TRITONSERVER_Error* (*fn)(Args... args)) noexcept;
-
 template <typename T>
 struct lifecycle_traits;
+
+// Declare the specializations of `lifecycle_traits` that are needed,
+// before they get used in `make_unique`, `take_unique`, and
+// `make_shared`.
+//
+// See https://stackoverflow.com/questions/57614188/explicit-specialization-must-precede-its-first-use
+
+template <>
+struct lifecycle_traits<TRITONSERVER_Error>;
+
+template <>
+struct lifecycle_traits<TRITONSERVER_ServerOptions>;
+
+template <>
+struct lifecycle_traits<TRITONSERVER_Server>;
+
+template <>
+struct lifecycle_traits<TRITONSERVER_ResponseAllocator>;
+
+template <>
+struct lifecycle_traits<TRITONSERVER_InferenceRequest>;
+
+template <>
+struct lifecycle_traits<TRITONSERVER_InferenceResponse>;
+
+template <>
+struct lifecycle_traits<TRITONSERVER_Message>;
 
 template <typename T>
 struct traits {
@@ -126,6 +149,20 @@ template <typename T, class... Args>
 std::shared_ptr<T> make_shared(Args&&... args) {
     using lifecycle = typename traits<T>::lifecycle;
     return std::shared_ptr<T>(lifecycle::ctor(std::forward<Args>(args)...), lifecycle::dtor);
+}
+
+template <typename Stdex = std::runtime_error, typename... Args>
+[[gnu::warn_unused_result]] constexpr auto call(TRITONSERVER_Error* (*fn)(Args... args)) noexcept {
+    // NOTE: The lack of perfect forwarding here is deliberate.
+    return [=](Args... args) {
+        const auto error = take_unique(fn(args...));
+        if (error) {
+            std::ostringstream buffer;
+            buffer << ": Triton Server Error: " << the_shim.ErrorCodeString(error.get()) << " - "
+                   << the_shim.ErrorMessage(error.get());
+            throw Stdex(buffer.str());
+        }
+    };
 }
 
 template <>
@@ -218,20 +255,6 @@ struct lifecycle_traits<TRITONSERVER_Message> {
         call(the_shim.MessageDelete)(std::forward<Args>(args)...);
     };
 };
-
-template <typename Stdex = std::runtime_error, typename... Args>
-[[gnu::warn_unused_result]] constexpr auto call(TRITONSERVER_Error* (*fn)(Args... args)) noexcept {
-    // NOTE: The lack of perfect forwarding here is deliberate.
-    return [=](Args... args) {
-        const auto error = take_unique(fn(args...));
-        if (error) {
-            std::ostringstream buffer;
-            buffer << ": Triton Server Error: " << the_shim.ErrorCodeString(error.get()) << " - "
-                   << the_shim.ErrorMessage(error.get());
-            throw Stdex(buffer.str());
-        }
-    };
-}
 
 }  // namespace cxxapi
 }  // namespace triton
