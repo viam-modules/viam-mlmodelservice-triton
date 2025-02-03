@@ -59,6 +59,12 @@ jobs:
   module:
     needs: [container]
     strategy:
+      # Until Viam's tags get priorities, it is very important to deploy the Jetpack versions
+      # *before* the CUDA versions. Otherwise, a Jetpack machine will use the CUDA version of the
+      # module because it can (which will work, but miss out on the Jetpack-specific features). So,
+      # remove the parallelization and do these uploads in order until tag priorities are supported
+      # (see APP-6759).
+      max-parallel: 1
       matrix:
         platform:
           - arch: arm64
