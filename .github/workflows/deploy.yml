@@ -1,7 +1,9 @@
 on:
   push:
-  release:
-    types: [published]
+    tags:
+    - '[0-9]+.[0-9]+.[0-9]+'
+    - '[0-9]+.[0-9]+.[0-9]+-rc'
+    - '[0-9]+.[0-9]+.[0-9]+-rc[0-9]+'
 
 env:
   DOCKER_TAG: ghcr.io/${{ github.repository }}
