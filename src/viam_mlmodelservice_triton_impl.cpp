@@ -106,7 +106,7 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
 
                 // Remove any symlinks we've added to our module workspace.
                 if (!state_->model_name.empty()) {
-                    remove_symlink_mlmodel_(state_->model_name);
+                    remove_symlink_mlmodel_(state_->configuration.name());
                 }
 
                 std::shared_ptr<struct state_> state;
@@ -373,8 +373,12 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
         const std::filesystem::path saved_model_pb_path =
             std::filesystem::path(*model_path_string) / "saved_model.pb";
         const bool is_tf = std::filesystem::exists(saved_model_pb_path);
+
+        // On systems with multiple GPUs, we will likely have multiple components running. Give
+        // each one their own directory full of their own symlinks.
         std::filesystem::path directory_name =
-            std::filesystem::path(std::getenv("VIAM_MODULE_DATA")) / state.model_name;
+            std::filesystem::path(std::getenv("VIAM_MODULE_DATA")) / state.configuration.name() /
+            state.model_name;
         if (is_tf) {
             directory_name /= model_version;
         }
@@ -400,9 +404,11 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
         std::filesystem::create_directory_symlink(*model_path_string, triton_name);
     }
 
-    static void remove_symlink_mlmodel_(const std::string& model_name) {
+    static void remove_symlink_mlmodel_(const std::string& component_name) {
+        // There might be old models left over from a previous run in which our component was
+        // killed without exiting smoothly. Remove everything in our directory.
         std::filesystem::path directory_name =
-            std::filesystem::path(std::getenv("VIAM_MODULE_DATA")) / model_name;
+            std::filesystem::path(std::getenv("VIAM_MODULE_DATA")) / component_name;
         // Note that remove_all succeeds even if the directory it was given doesn't exist!
         std::filesystem::remove_all(directory_name);
     }
@@ -434,11 +440,8 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
         const auto& attributes = state->configuration.attributes();
 
         // If we're reconfiguring and have an old model name symlinked into our module workspace,
-        // remove it before setting up the
-        // new repo.
-        if (!state->model_name.empty()) {
-            remove_symlink_mlmodel_(state->model_name);
-        }
+        // remove it before setting up the new repo.
+        remove_symlink_mlmodel_(state->configuration.name());
 
         // Pull the model name out of the configuration.
         auto model_name = attributes->find("model_name");
