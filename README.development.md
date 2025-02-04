@@ -52,7 +52,7 @@ $ docker run -id --name triton-jp5-deploy triton-jp5-iterative-deploy
 or
 
 ```sh
-$ docker run -id --name triton-jp5-deploy triton-jp6-iterative-deploy
+$ docker run -id --name triton-jp6-deploy triton-jp6-iterative-deploy
 ```
 
 5. Establish a persistent session inside the build container with tmux or screen
