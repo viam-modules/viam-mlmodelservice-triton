@@ -55,33 +55,48 @@ or
 $ docker run -id --name triton-jp6-deploy triton-jp6-iterative-deploy
 ```
 
-5. Establish a persistent session inside the build container with tmux or screen
+5. Establish a shell session inside the build container
+
+```sh
+$ docker exec -it triton-jp5-dev /bin/bash
+```
+
+Alternatively, consider using `tmux` to make the session persistent, so it isn't tied to your
+current terminal session.
 
 ```sh
 $ docker exec -it triton-jp5-dev apt-get update
 $ docker exec -it triton-jp5-dev apt-get install tmux
-$ docker exec -it triton-jp5-dev tmux -u -CC new-session -A -s dev
+$ docker exec -it triton-jp5-dev tmux -u new-session -A -s dev
 ```
 
-## Iterarative Development - Inside Container
+You could also install and use `screen` instead of `tmux`.
 
-Within the tmux or screen session inside the docker container, you can now do ordinary interative development.
+## Iterative Development - Inside Container
+
+Within a shell session inside the docker container, you can now do ordinary interative development.
 Changes to the triton module sources made outside the container will be reflected inside the container due to the bind mount.
 Personally, I like to go a step further and have mutagen sync my trition module sources from my development machine over to the machine where the container is running, but if you are using an IDE that supports remote work trees that's another way to go about it.
 That may be advantageous, as you will have a complete stack there, so things like LSP are more likely to work.
 
-1. If not currently connected, reconnect to the persistent session in the dev container:
+1. If not currently connected, reconnect to the dev container:
 
 ```sh
-$ docker exec -it triton-jp5-dev tmux -u -CC new-session -A -s dev
+$ docker exec -it triton-jp5-dev /bin/bash
 ```
 
-2. Build the Viam Triton module inside the container with cmake and Ninja.
+Alternatively, if using `tmux` (or `screen`):
+
+```sh
+$ docker exec -it triton-jp5-dev tmux -u new-session -A -s dev
+```
+
+2. Do an initial build of the Viam Triton module inside the container with cmake and Ninja.
 Note that the build commands here reflect the container build step for the `build` stage, adjust as necessary for your situation:
 
 ```sh
 $ cd ~/opt/src/viam-mlmodelservice-triton
-$ cmake -S . -B build -G Ninja -DVIAM_MLMODELSERVICE_TRITON_TRITONSERVER_ROOT=/opt/tritonserver/tritonserver -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_PREFIX_PATH=/opt/viam
+$ cmake -S . -B build -G Ninja -DVIAM_MLMODELSERVICE_TRITON_TRITONSERVER_ROOT=/opt/tritonserver/tritonserver -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_PREFIX_PATH=/opt/viam -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 $ cmake --build build --target install -- -v
 $ cmake --install build --prefix /opt/viam
 ```
@@ -96,6 +111,7 @@ $ cmake --build build --target install -- -v
 
 Repeat until you arrive at a state you want to try to run.
 If you have unit tests, run them here until you are happy with the results.
+You can return to this step after testing the deployment to continue iterating, unless you need to regenerate the build system with different CMake parameters, in which case return to step 2 above.
 
 
 4. Reinstall the modified build to `/opt/viam`:
@@ -122,6 +138,8 @@ If you are on a JP6 or CUDA container (nvcr base), you don't need to do it at al
 $ docker cp -a triton-jp5-dev:/opt/tritonserver - | docker cp -a - triton-jp5-deploy:/opt
 ```
 
+NOTE: Unfortunately, the above command may erroneously report that it copied zero bytes. It is safe to disregard this message.
+
 2. Find the name of the image used for the currently deployed module.
 This will likely look something like this:
 
@@ -145,4 +163,4 @@ You should find that your changes are now reflected in the running module.
 
 5. Iterate
 
-To iterate, make changes to the Viam Triton Server Module sources, rerun the cmake commands to build and install, copy the results from the `-dev` container to the `-deploy` container, `commit` the results, and restart `viam-server`.
+To iterate, make changes to the Viam Triton Server Module sources, rerun the cmake commands to build and install (steps 3 and 4 under `Iterative Development - Inside Container`), copy the results from the `-dev` container to the `-deploy` container, `commit` the results, and restart `viam-server`.
