@@ -469,7 +469,9 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
             // With no model repository path, we try to construct our own by symlinking a single
             // model path.
             symlink_mlmodel_(*state.get());
-            state->model_repo_path = std::move(std::getenv("VIAM_MODULE_DATA"));
+            std::filesystem::path directory_name =
+                std::filesystem::path(std::getenv("VIAM_MODULE_DATA")) / state->configuration.name();
+            state->model_repo_path = std::move(directory_name.string());
             state->model_version = 1;
         } else {
             // If the model_repository_path is specified, forbid specifying the model_path.
