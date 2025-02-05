@@ -32,10 +32,10 @@ RUN apt-get -y update && apt-get -y --no-install-recommends install \
 
 # Clone, build, and install the viam-cpp-sdk repo
 RUN mkdir -p ${HOME}/opt/src
-RUN cd ${HOME}/opt/src && \
-    git clone https://github.com/viamrobotics/viam-cpp-sdk.git -b releases/v0.0.11 && \
-    cd viam-cpp-sdk && \
-    cmake -S . -B build -G Ninja \
+WORKDIR ${HOME}/opt/src
+RUN git clone https://github.com/viamrobotics/viam-cpp-sdk.git -b releases/v0.0.11
+WORKDIR viam-cpp-sdk
+RUN cmake -S . -B build -G Ninja \
       -DCMAKE_BUILD_TYPE=RelWithDebInfo \
       -DCMAKE_PREFIX_PATH=/opt/viam \
       -DVIAMCPPSDK_BUILD_EXAMPLES=OFF \
@@ -53,10 +53,10 @@ ENV DEBIAN_FRONTEND=noninteractive
 # Build and install the Viam Triton MLModelService from our
 # local state against the C++ SDK and Triton Server
 ADD . ${HOME}/opt/src/viam-mlmodelservice-triton
+WORKDIR ${HOME}/opt/src/viam-mlmodelservice-triton
 RUN \
-    cd ${HOME}/opt/src/viam-mlmodelservice-triton && \
     cmake -S . -B build -G Ninja \
-      -DVIAM_MLMODELSERVICE_TRITON_TRITONSERVER_ROOT=/opt/tritonserver \
+      -DCMAKE_EXPORT_COMPILE_COMMANDS=on \
       -DCMAKE_BUILD_TYPE=RelWithDebInfo \
       -DCMAKE_PREFIX_PATH=/opt/viam && \
     cmake --build build --target install -- -v && \
@@ -77,6 +77,11 @@ RUN apt-get -y update && apt-get -y --no-install-recommends install \
     libabsl20210324 \
     libgrpc++1 \
     libprotobuf23
+
+FROM build AS linter
+RUN apt-get install -y clang-tidy
+WORKDIR ${HOME}/opt/src/viam-mlmodelservice-triton/src
+RUN clang-tidy -p ../build *.cpp *.hpp
 
 FROM runtime AS deploy
 ENV DEBIAN_FRONTEND=noninteractive
