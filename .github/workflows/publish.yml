@@ -72,7 +72,7 @@ jobs:
         build-args: ${{ matrix.build_target.build_args }}
 
   module:  # Upload the module to the Viam modular registry
-    needs: [container]
+    needs: [validate-tag, container]
     strategy:
       # Until Viam's tags get priorities, it is very important to deploy the Jetpack versions
       # *before* the CUDA versions. Otherwise, a Jetpack machine will use the CUDA version of the
