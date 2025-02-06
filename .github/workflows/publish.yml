@@ -1,16 +1,28 @@
 on:
-  push:
-    tags:
-    - '[0-9]+.[0-9]+.[0-9]+'
-    - '[0-9]+.[0-9]+.[0-9]+-rc'
-    - '[0-9]+.[0-9]+.[0-9]+-rc[0-9]+'
+  release:
+    types: [published]
 
 env:
   DOCKER_TAG: ghcr.io/${{ github.repository }}
   VERSION: ${{ github.ref_name }}
 
 jobs:
+  validate-tag:  # Make sure the tag we're publishing looks like semantic versioning
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate tag format
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          echo "Validating tag: '$TAG'"
+          if [[ $TAG =~ ^[0-9]+\.[0-9]+\.[0-9]+(-rc[0-9]*)?$ ]]; then
+            echo "Tag matches semver."
+          else
+            echo "Error: tag does not match semver."
+            exit 1
+          fi
+
   container:  # Upload the docker image to the Github Container Registry
+    needs: [validate-tag]
     strategy:
       matrix:
         build_target:
@@ -58,8 +70,9 @@ jobs:
         push: ${{ github.event_name == 'release' }}
         file: etc/docker/${{ matrix.build_target.dockerfile }}
         build-args: ${{ matrix.build_target.build_args }}
+
   module:  # Upload the module to the Viam modular registry
-    needs: [container]
+    needs: [validate-tag, container]
     strategy:
       # Until Viam's tags get priorities, it is very important to deploy the Jetpack versions
       # *before* the CUDA versions. Otherwise, a Jetpack machine will use the CUDA version of the
