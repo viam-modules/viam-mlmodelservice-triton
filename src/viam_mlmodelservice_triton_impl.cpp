@@ -446,7 +446,7 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
 
         // If we're reconfiguring and have an old model name symlinked into our module workspace,
         // remove it before setting up the new repo.
-        remove_symlink_mlmodel_(state);
+        remove_symlink_mlmodel_(*state.get());
 
         // Pull the model name out of the configuration.
         auto model_name = attributes->find("model_name");
