@@ -106,7 +106,7 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
 
                 // Remove any symlinks we've added to our module workspace.
                 if (!state_->model_name.empty()) {
-                    remove_symlink_mlmodel_(state_->configuration.name());
+                    remove_symlink_mlmodel_(state_);
                 }
 
                 std::shared_ptr<struct state_> state;
@@ -446,7 +446,7 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
 
         // If we're reconfiguring and have an old model name symlinked into our module workspace,
         // remove it before setting up the new repo.
-        remove_symlink_mlmodel_(state->configuration.name());
+        remove_symlink_mlmodel_(state);
 
         // Pull the model name out of the configuration.
         auto model_name = attributes->find("model_name");
