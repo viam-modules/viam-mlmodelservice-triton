@@ -342,6 +342,14 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
         return state_;
     }
 
+	static inline std::filesystem::path get_module_data_path_(const struct state_& state) {
+		// The overall Viam config might have multiple components that each run on separate GPUs.
+		// Each one gets its own subdirectory within our module data to avoid hitting the others.
+        std::filesystem::path directory_name =
+            std::filesystem::path(std::getenv("VIAM_MODULE_DATA")) / state.configuration.name();
+		return directory_name;
+	}
+
     static void symlink_mlmodel_(const struct state_& state) {
         const auto& attributes = state.configuration.attributes();
 
@@ -374,11 +382,7 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
             std::filesystem::path(*model_path_string) / "saved_model.pb";
         const bool is_tf = std::filesystem::exists(saved_model_pb_path);
 
-        // On systems with multiple GPUs, we will likely have multiple components running. Give
-        // each one their own directory full of their own symlinks.
-        std::filesystem::path directory_name =
-            std::filesystem::path(std::getenv("VIAM_MODULE_DATA")) / state.configuration.name() /
-            state.model_name;
+        std::filesystem::path directory_name = get_module_data_path_(state) / state.model_name;
         if (is_tf) {
             directory_name /= model_version;
         }
@@ -404,13 +408,11 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
         std::filesystem::create_directory_symlink(*model_path_string, triton_name);
     }
 
-    static void remove_symlink_mlmodel_(const std::string& component_name) {
+    static void remove_symlink_mlmodel_(const struct state_& state) {
         // There might be old models left over from a previous run in which our component was
         // killed without exiting smoothly. Remove everything in our directory.
-        std::filesystem::path directory_name =
-            std::filesystem::path(std::getenv("VIAM_MODULE_DATA")) / component_name;
         // Note that remove_all succeeds even if the directory it was given doesn't exist!
-        std::filesystem::remove_all(directory_name);
+        std::filesystem::remove_all(get_module_data_path_(state));
     }
 
     static std::shared_ptr<struct state_> reconfigure_(vsdk::Dependencies dependencies,
@@ -469,9 +471,7 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
             // With no model repository path, we try to construct our own by symlinking a single
             // model path.
             symlink_mlmodel_(*state.get());
-            std::filesystem::path directory_name =
-                std::filesystem::path(std::getenv("VIAM_MODULE_DATA")) / state->configuration.name();
-            state->model_repo_path = std::move(directory_name.string());
+            state->model_repo_path = std::move(get_module_data_path_(state).string());
             state->model_version = 1;
         } else {
             // If the model_repository_path is specified, forbid specifying the model_path.
