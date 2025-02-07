@@ -105,9 +105,7 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
                 stopped_ = true;
 
                 // Remove any symlinks we've added to our module workspace.
-                if (!state_->model_name.empty()) {
-                    remove_symlink_mlmodel_(*state_.get());
-                }
+                remove_symlink_mlmodel_(*state_.get());
 
                 std::shared_ptr<struct state_> state;
                 swap(state_, state);
