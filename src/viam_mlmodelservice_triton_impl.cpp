@@ -341,8 +341,9 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
     }
 
     static inline std::filesystem::path get_module_data_path_(const struct state_& state) {
-        // The overall Viam config might have multiple components that each run on separate GPUs.
-        // Each one gets its own subdirectory within our module data to avoid hitting the others.
+        // The overall Viam config might have multiple Triton components that each run on separate
+        // GPUs. Each one gets its own subdirectory within our module data to avoid hitting the
+        // others.
         std::filesystem::path directory_name =
             std::filesystem::path(std::getenv("VIAM_MODULE_DATA")) / state.configuration.name();
         return directory_name;
@@ -369,7 +370,7 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
         }
 
         // The user doesn't have a way to set the version number: they've downloaded the only
-        // version available to them. So, set the version to 1
+        // version available to them. So, set the version to 1.
         const std::string model_version = "1";
         state.model_version = 1;
 
