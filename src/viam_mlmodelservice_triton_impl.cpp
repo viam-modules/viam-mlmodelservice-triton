@@ -106,7 +106,7 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
 
                 // Remove any symlinks we've added to our module workspace.
                 if (!state_->model_name.empty()) {
-                    remove_symlink_mlmodel_(state_);
+                    remove_symlink_mlmodel_(*state_.get());
                 }
 
                 std::shared_ptr<struct state_> state;
@@ -373,7 +373,7 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
         // The user doesn't have a way to set the version number: they've downloaded the only
         // version available to them. So, set the version to 1
         const std::string model_version = "1";
-        state->model_version = 1;
+        state.model_version = 1;
 
         // If there exists a `saved_model.pb` file in the model path, this is a TensorFlow model.
         // In that case, Triton uses a different directory structure compared to all other models.
@@ -384,7 +384,8 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
         const bool is_tf = std::filesystem::exists(saved_model_pb_path);
 
         std::filesystem::path directory_name = get_module_data_path_(state);
-        state->model_repo_path = std::move(directory_name.string());
+        state.model_repo_path = std::move(directory_name.string());
+
         directory_name /= state.model_name;
         if (is_tf) {
             directory_name /= model_version;
