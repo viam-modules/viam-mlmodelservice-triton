@@ -340,7 +340,7 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
         return state_;
     }
 
-    static inline std::filesystem::path get_module_data_path_(const struct state_& state) {
+    static std::filesystem::path get_module_data_path_(const struct state_& state) {
         // The overall Viam config might have multiple Triton components that each run on separate
         // GPUs. Each one gets its own subdirectory within our module data to avoid hitting the
         // others.
