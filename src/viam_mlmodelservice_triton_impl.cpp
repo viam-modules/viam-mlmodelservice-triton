@@ -105,7 +105,7 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
                 stopped_ = true;
 
                 // Remove any symlinks we've added to our module workspace.
-                remove_symlink_mlmodel_(*state_.get());
+                remove_repo_symlink_(*state_.get());
 
                 std::shared_ptr<struct state_> state;
                 swap(state_, state);
@@ -411,7 +411,7 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
         std::filesystem::create_directory_symlink(*model_path_string, triton_name);
     }
 
-    static void remove_symlink_mlmodel_(const struct state_& state) {
+    static void remove_repo_symlink_(const struct state_& state) {
         // There might be old models left over from a previous run in which our component was
         // killed without exiting smoothly. Remove everything in our directory.
         // Note that remove_all succeeds even if the directory it was given doesn't exist!
@@ -446,7 +446,7 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
 
         // If we're reconfiguring and have an old model name symlinked into our module workspace,
         // remove it before setting up the new repo.
-        remove_symlink_mlmodel_(*state.get());
+        remove_repo_symlink_(*state.get());
 
         // Pull the model name out of the configuration.
         auto model_name = attributes->find("model_name");
