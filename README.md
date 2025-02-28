@@ -83,7 +83,9 @@ service. Your `model_path` should end up looking something like this:
 ```
 where the `TF2-EfficientDetD0-COCO` is replaced with the name of the model you want to use instead.
 You should also name the model, and add in the name remappings mentioned in the registry entry for
-your model, such as:
+your model.
+
+#### Minimal example
 ```
 {
   "model_path": "${packages.ml_model.TF2-EfficientDetD0-COCO}",
@@ -101,6 +103,7 @@ your model, such as:
   }
 }
 ```
+Remember to select/download the model, so the `model_path` actually exists!
 
 ### Option 2: create a repository to store the ML model to deploy
 

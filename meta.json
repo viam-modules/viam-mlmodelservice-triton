@@ -7,7 +7,9 @@
   "models": [
     {
       "api": "rdk:service:mlmodel",
-      "model": "viam:mlmodelservice:triton"
+      "model": "viam:mlmodelservice:triton",
+      "short_description": "ML Model Service which interfaces with Triton to do inference",
+      "markdown_link": "README.md#minimal-example"
     }
   ],
   "entrypoint": "viam-mlmodelservice-triton.sh",
