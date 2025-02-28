@@ -2,12 +2,14 @@
   "$schema": "https://dl.viam.dev/module.schema.json",
   "module_id": "viam:mlmodelservice-triton-jetpack",
   "visibility": "public",
-  "url": "https://github.com/viamrobotics/viam-mlmodelservice-triton",
+  "url": "https://github.com/viam-modules/viam-mlmodelservice-triton",
   "description": "Viam Triton Inference Server Module",
   "models": [
     {
       "api": "rdk:service:mlmodel",
-      "model": "viam:mlmodelservice:triton"
+      "model": "viam:mlmodelservice:triton",
+      "short_description": "ML Model Service which interfaces with Triton to do inference",
+      "markdown_link": "README.md#minimal-example"
     }
   ],
   "entrypoint": "viam-mlmodelservice-triton.sh",
