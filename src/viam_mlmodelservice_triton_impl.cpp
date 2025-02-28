@@ -103,6 +103,10 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
             std::lock_guard<std::mutex> lock(state_lock_);
             if (!stopped_) {
                 stopped_ = true;
+
+                // Remove any symlinks we've added to our module workspace.
+                remove_repo_symlink_(*state_.get());
+
                 std::shared_ptr<struct state_> state;
                 swap(state_, state);
                 state_ready_.notify_all();
@@ -336,7 +340,16 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
         return state_;
     }
 
-    static void symlink_mlmodel_(const struct state_& state) {
+    static std::filesystem::path get_module_data_path_(const struct state_& state) {
+        // The overall Viam config might have multiple Triton components that each run on separate
+        // GPUs. Each one gets its own subdirectory within our module data to avoid hitting the
+        // others.
+        std::filesystem::path directory_name =
+            std::filesystem::path(std::getenv("VIAM_MODULE_DATA")) / state.configuration.name();
+        return directory_name;
+    }
+
+    static void symlink_mlmodel_(struct state_& state) {
         const auto& attributes = state.configuration.attributes();
 
         auto model_path = attributes->find("model_path");
@@ -357,8 +370,9 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
         }
 
         // The user doesn't have a way to set the version number: they've downloaded the only
-        // version available to them. So, set the version to 1
+        // version available to them. So, set the version to 1.
         const std::string model_version = "1";
+        state.model_version = 1;
 
         // If there exists a `saved_model.pb` file in the model path, this is a TensorFlow model.
         // In that case, Triton uses a different directory structure compared to all other models.
@@ -367,8 +381,11 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
         const std::filesystem::path saved_model_pb_path =
             std::filesystem::path(*model_path_string) / "saved_model.pb";
         const bool is_tf = std::filesystem::exists(saved_model_pb_path);
-        std::filesystem::path directory_name =
-            std::filesystem::path(std::getenv("VIAM_MODULE_DATA")) / state.model_name;
+
+        std::filesystem::path directory_name = get_module_data_path_(state);
+        state.model_repo_path = std::move(directory_name.string());
+
+        directory_name /= state.model_name;
         if (is_tf) {
             directory_name /= model_version;
         }
@@ -392,6 +409,13 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
             }
         }
         std::filesystem::create_directory_symlink(*model_path_string, triton_name);
+    }
+
+    static void remove_repo_symlink_(const struct state_& state) {
+        // There might be old models left over from a previous run in which our component was
+        // killed without exiting smoothly. Remove everything in our directory.
+        // Note that remove_all succeeds even if the directory it was given doesn't exist!
+        std::filesystem::remove_all(get_module_data_path_(state));
     }
 
     static std::shared_ptr<struct state_> reconfigure_(vsdk::Dependencies dependencies,
@@ -420,6 +444,10 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
 
         const auto& attributes = state->configuration.attributes();
 
+        // If we're reconfiguring and have an old model name symlinked into our module workspace,
+        // remove it before setting up the new repo.
+        remove_repo_symlink_(*state.get());
+
         // Pull the model name out of the configuration.
         auto model_name = attributes->find("model_name");
         if (model_name == attributes->end()) {
@@ -444,10 +472,8 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
         auto model_repo_path = attributes->find("model_repository_path");
         if (model_repo_path == attributes->end()) {
             // With no model repository path, we try to construct our own by symlinking a single
-            // model path.
+            // model path. This line also sets state.model_repo_path and state.model_version.
             symlink_mlmodel_(*state.get());
-            state->model_repo_path = std::move(std::getenv("VIAM_MODULE_DATA"));
-            state->model_version = 1;
         } else {
             // If the model_repository_path is specified, forbid specifying the model_path.
             if (attributes->find("model_path") != attributes->end()) {
@@ -1244,7 +1270,7 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
 
 int serve(int argc, char* argv[]) noexcept try {
     // Validate that the version of the triton server that we are
-    // running against is sufficient w.r..t the version we were built
+    // running against is sufficient w.r.t. the version we were built
     // against.
     std::uint32_t triton_version_major;
     std::uint32_t triton_version_minor;
