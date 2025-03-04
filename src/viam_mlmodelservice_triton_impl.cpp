@@ -376,8 +376,7 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
         // In that case, Triton uses a different directory structure compared to all other models.
         // For details, see
         // https://docs.nvidia.com/deeplearning/triton-inference-server/user-guide/docs/user_guide/model_repository.html#model-files
-        const std::filesystem::path saved_model_pb_path =
-            std::filesystem::path(*model_path_string) / "saved_model.pb";
+        auto saved_model_pb_path = std::filesystem::path(*model_path_string) / "saved_model.pb";
         const bool is_tf = std::filesystem::exists(saved_model_pb_path);
 
         std::filesystem::path directory_name = get_module_data_path_(state);
