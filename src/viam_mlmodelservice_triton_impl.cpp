@@ -26,6 +26,7 @@
 #include <future>
 #include <iostream>
 #include <mutex>
+#include <shared_mutex>
 #include <sstream>
 #include <stack>
 #include <stdexcept>
