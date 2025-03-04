@@ -383,7 +383,7 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
         const bool is_tf = std::filesystem::exists(saved_model_pb_path);
 
         std::filesystem::path directory_name = get_module_data_path_(state);
-        state.model_repo_path = std::move(directory_name.string());
+        state.model_repo_path = directory_name.string();
 
         directory_name /= state.model_name;
         if (is_tf) {
