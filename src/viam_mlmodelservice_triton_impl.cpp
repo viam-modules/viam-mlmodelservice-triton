@@ -118,14 +118,10 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
 
     void reconfigure(const vsdk::Dependencies& dependencies,
                      const vsdk::ResourceConfig& configuration) final try {
-        // Care needs to be taken during reconfiguration. The
-        // framework does not offer protection against invocation
-        // during reconfiguration. Keep all state in a shared_ptr
-        // managed block, and allow client invocations to act against
-        // current state while a new configuration is built, then swap
-        // in the new state. State which is in use by existing
-        // invocations will remain valid until the clients drain. If
-        // reconfiguration fails, the component will `stop`.
+        // Before we change the state of the class (especially by modifying the model repository
+        // used by Triton itself), wait until all old inferences are finished.
+        std::unique_lock<std::shared_mutex> lock(rwmutex_);
+        // TODO: Now that there is a mutex, the rest of this can be simplified.
 
         // Swap out the state_ member with nullptr. Existing
         // invocations will continue to operate against the state they
@@ -163,6 +159,9 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
 
     std::shared_ptr<named_tensor_views> infer(const named_tensor_views& inputs,
                                               const vsdk::AttributeMap& extra) final {
+        // Acquire a shared lock on the mutex. This allows multiple `infer` calls to run in
+        // parallel, but does not allow `reconfigure` to run in parallel with any other call.
+        std::shared_lock<std::shared_mutex> lock(rwmutex_);
         const auto state = lease_state_();
 
         auto inference_request = get_inference_request_(state);
@@ -318,6 +317,7 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
 
    private:
     struct state_;
+    std::shared_mutex rwmutex_;
 
     void check_stopped_inlock_() const {
         if (stopped_) {
