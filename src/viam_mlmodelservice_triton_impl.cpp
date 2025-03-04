@@ -344,9 +344,7 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
         // The overall Viam config might have multiple Triton components that each run on separate
         // GPUs. Each one gets its own subdirectory within our module data to avoid hitting the
         // others.
-        std::filesystem::path directory_name =
-            std::filesystem::path(std::getenv("VIAM_MODULE_DATA")) / state.configuration.name();
-        return directory_name;
+        return std::filesystem::path(std::getenv("VIAM_MODULE_DATA")) / state.configuration.name();
     }
 
     static void symlink_mlmodel_(struct state_& state) {
