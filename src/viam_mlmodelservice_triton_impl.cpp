@@ -100,6 +100,9 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
 
     void stop(const vsdk::AttributeMap& extra) noexcept final {
         using std::swap;
+        // Before we change the state of the class (especially by tearing down the model repository
+        // used by Triton itself), wait until all old inferences are finished.
+        std::unique_lock<std::shared_mutex> lock(rwmutex_);
         try {
             std::lock_guard<std::mutex> lock(state_lock_);
             if (!stopped_) {
@@ -312,6 +315,10 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
     }
 
     struct metadata metadata(const vsdk::AttributeMap& extra) final {
+		// Acquire a shared lock on the mutex. This allows multiple `metadata` and `infer` calls to
+		// run in parallel, but does not allow `reconfigure` to run in parallel with any other
+		// call.
+        std::shared_lock<std::shared_mutex> lock(rwmutex_);
         // Just return a copy of our metadata from leased state.
         return lease_state_()->metadata;
     }
