@@ -26,6 +26,7 @@
 #include <future>
 #include <iostream>
 #include <mutex>
+#include <shared_mutex>
 #include <sstream>
 #include <stack>
 #include <stdexcept>
@@ -99,10 +100,17 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
 
     void stop(const vsdk::AttributeMap& extra) noexcept final {
         using std::swap;
+        // Before we change the state of the class (especially by tearing down the model repository
+        // used by Triton itself), wait until all old inferences are finished.
+        std::unique_lock<std::shared_mutex> lock(rwmutex_);
         try {
             std::lock_guard<std::mutex> lock(state_lock_);
             if (!stopped_) {
                 stopped_ = true;
+
+                // Remove any symlinks we've added to our module workspace.
+                remove_repo_symlink_(*state_.get());
+
                 std::shared_ptr<struct state_> state;
                 swap(state_, state);
                 state_ready_.notify_all();
@@ -114,14 +122,10 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
 
     void reconfigure(const vsdk::Dependencies& dependencies,
                      const vsdk::ResourceConfig& configuration) final try {
-        // Care needs to be taken during reconfiguration. The
-        // framework does not offer protection against invocation
-        // during reconfiguration. Keep all state in a shared_ptr
-        // managed block, and allow client invocations to act against
-        // current state while a new configuration is built, then swap
-        // in the new state. State which is in use by existing
-        // invocations will remain valid until the clients drain. If
-        // reconfiguration fails, the component will `stop`.
+        // Before we change the state of the class (especially by modifying the model repository
+        // used by Triton itself), wait until all old inferences are finished.
+        std::unique_lock<std::shared_mutex> lock(rwmutex_);
+        // TODO: Now that there is a mutex, the rest of this can be simplified.
 
         // Swap out the state_ member with nullptr. Existing
         // invocations will continue to operate against the state they
@@ -159,6 +163,9 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
 
     std::shared_ptr<named_tensor_views> infer(const named_tensor_views& inputs,
                                               const vsdk::AttributeMap& extra) final {
+        // Acquire a shared lock on the mutex. This allows multiple `infer` calls to run in
+        // parallel, but does not allow `reconfigure` to run in parallel with any other call.
+        std::shared_lock<std::shared_mutex> lock(rwmutex_);
         const auto state = lease_state_();
 
         auto inference_request = get_inference_request_(state);
@@ -308,12 +315,17 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
     }
 
     struct metadata metadata(const vsdk::AttributeMap& extra) final {
+		// Acquire a shared lock on the mutex. This allows multiple `metadata` and `infer` calls to
+		// run in parallel, but does not allow `reconfigure` to run in parallel with any other
+		// call.
+        std::shared_lock<std::shared_mutex> lock(rwmutex_);
         // Just return a copy of our metadata from leased state.
         return lease_state_()->metadata;
     }
 
    private:
     struct state_;
+    std::shared_mutex rwmutex_;
 
     void check_stopped_inlock_() const {
         if (stopped_) {
@@ -336,7 +348,14 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
         return state_;
     }
 
-    static void symlink_mlmodel_(const struct state_& state) {
+    static std::filesystem::path get_module_data_path_(const struct state_& state) {
+        // The overall Viam config might have multiple Triton components that each run on separate
+        // GPUs. Each one gets its own subdirectory within our module data to avoid hitting the
+        // others.
+        return std::filesystem::path(std::getenv("VIAM_MODULE_DATA")) / state.configuration.name();
+    }
+
+    static void symlink_mlmodel_(struct state_& state) {
         const auto& attributes = state.configuration.attributes();
 
         auto model_path = attributes->find("model_path");
@@ -357,18 +376,21 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
         }
 
         // The user doesn't have a way to set the version number: they've downloaded the only
-        // version available to them. So, set the version to 1
+        // version available to them. So, set the version to 1.
         const std::string model_version = "1";
+        state.model_version = 1;
 
         // If there exists a `saved_model.pb` file in the model path, this is a TensorFlow model.
         // In that case, Triton uses a different directory structure compared to all other models.
         // For details, see
         // https://docs.nvidia.com/deeplearning/triton-inference-server/user-guide/docs/user_guide/model_repository.html#model-files
-        const std::filesystem::path saved_model_pb_path =
-            std::filesystem::path(*model_path_string) / "saved_model.pb";
+        auto saved_model_pb_path = std::filesystem::path(*model_path_string) / "saved_model.pb";
         const bool is_tf = std::filesystem::exists(saved_model_pb_path);
-        std::filesystem::path directory_name =
-            std::filesystem::path(std::getenv("VIAM_MODULE_DATA")) / state.model_name;
+
+        std::filesystem::path directory_name = get_module_data_path_(state);
+        state.model_repo_path = directory_name.string();
+
+        directory_name /= state.model_name;
         if (is_tf) {
             directory_name /= model_version;
         }
@@ -392,6 +414,13 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
             }
         }
         std::filesystem::create_directory_symlink(*model_path_string, triton_name);
+    }
+
+    static void remove_repo_symlink_(const struct state_& state) {
+        // There might be old models left over from a previous run in which our component was
+        // killed without exiting smoothly. Remove everything in our directory.
+        // Note that remove_all succeeds even if the directory it was given doesn't exist!
+        std::filesystem::remove_all(get_module_data_path_(state));
     }
 
     static std::shared_ptr<struct state_> reconfigure_(vsdk::Dependencies dependencies,
@@ -420,6 +449,10 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
 
         const auto& attributes = state->configuration.attributes();
 
+        // If we're reconfiguring and have an old model name symlinked into our module workspace,
+        // remove it before setting up the new repo.
+        remove_repo_symlink_(*state.get());
+
         // Pull the model name out of the configuration.
         auto model_name = attributes->find("model_name");
         if (model_name == attributes->end()) {
@@ -444,10 +477,8 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
         auto model_repo_path = attributes->find("model_repository_path");
         if (model_repo_path == attributes->end()) {
             // With no model repository path, we try to construct our own by symlinking a single
-            // model path.
+            // model path. This line also sets state.model_repo_path and state.model_version.
             symlink_mlmodel_(*state.get());
-            state->model_repo_path = std::move(std::getenv("VIAM_MODULE_DATA"));
-            state->model_version = 1;
         } else {
             // If the model_repository_path is specified, forbid specifying the model_path.
             if (attributes->find("model_path") != attributes->end()) {
@@ -1244,7 +1275,7 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
 
 int serve(int argc, char* argv[]) noexcept try {
     // Validate that the version of the triton server that we are
-    // running against is sufficient w.r..t the version we were built
+    // running against is sufficient w.r.t. the version we were built
     // against.
     std::uint32_t triton_version_major;
     std::uint32_t triton_version_minor;
