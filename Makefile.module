@@ -35,7 +35,7 @@ image-cuda:
 
 
 # The module itself.
-module.tar.gz: viam-mlmodelservice-triton.sh first_run.sh
+module.tar.gz: viam-mlmodelservice-triton.sh first_run.sh meta.json
 	tar czf $@ $^
 
 # Helpers for building the module easily. These targets are phony because the files built don't
