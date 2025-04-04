@@ -14,6 +14,8 @@
 
 #include "viam_mlmodelservice_triton.hpp"
 
+#include <viam/sdk/common/instance.hpp>
+
 #include <dlfcn.h>
 
 #include <iostream>
@@ -34,6 +36,8 @@ const std::string usage = "usage: viam_mlmodelservice_triton /path/to/unix/socke
 
 int main(int argc, char* argv[]) {
     using namespace viam::mlmodelservice::triton;
+
+    Instance inst;
 
     if (argc < 2) {
         std::cout << service_name << "ERROR: insufficient arguments\n";
