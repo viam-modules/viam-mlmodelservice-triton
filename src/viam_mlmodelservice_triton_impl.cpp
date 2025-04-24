@@ -38,6 +38,7 @@
 #include <rapidjson/document.h>
 #include <rapidjson/error/en.h>
 
+#include <viam/sdk/common/instance.hpp>
 #include <viam/sdk/components/component.hpp>
 #include <viam/sdk/config/resource.hpp>
 #include <viam/sdk/module/service.hpp>
@@ -1274,6 +1275,9 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
 };
 
 int serve(int argc, char* argv[]) noexcept try {
+
+    const vsdk::Instance instance;
+
     // Validate that the version of the triton server that we are
     // running against is sufficient w.r.t. the version we were built
     // against.
