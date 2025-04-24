@@ -1,3 +1,8 @@
+# 25.02 is the last version with built-in TF backend support, per
+# the release notes here:
+#
+# https://github.com/triton-inference-server/server/releases/tag/v2.56.0
+#
 ARG TRITON_VERSION=25.02
 ARG JETPACK
 
