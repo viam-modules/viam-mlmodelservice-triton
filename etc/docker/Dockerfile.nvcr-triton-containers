@@ -70,7 +70,7 @@ RUN apt-get -y update && apt-get -y --no-install-recommends install \
     sudo
 
 RUN apt-get -y update && apt-get -y --no-install-recommends install \
-    libboost-log1.74.0 \
+    libboost-log1.83.0 \
     libjemalloc2 \
     libabsl20220623t64 \
     libgrpc++1.51t64 \
