@@ -35,7 +35,7 @@ RUN apt-get -y update && apt-get -y --no-install-recommends install \
 # Clone, build, and install the viam-cpp-sdk repo
 RUN mkdir -p ${HOME}/opt/src
 RUN cd ${HOME}/opt/src && \
-    git clone https://github.com/viamrobotics/viam-cpp-sdk.git -b releases/v0.10.0 && \
+    git clone https://github.com/viamrobotics/viam-cpp-sdk.git -b releases/v0.11.0 && \
     cd viam-cpp-sdk && \
     cmake -S . -B build -G Ninja \
       -DCMAKE_BUILD_TYPE=RelWithDebInfo \
