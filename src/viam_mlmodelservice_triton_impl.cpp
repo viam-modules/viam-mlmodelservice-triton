@@ -38,6 +38,7 @@
 #include <rapidjson/document.h>
 #include <rapidjson/error/en.h>
 
+#include <viam/sdk/common/instance.hpp>
 #include <viam/sdk/components/component.hpp>
 #include <viam/sdk/config/resource.hpp>
 #include <viam/sdk/module/service.hpp>
@@ -98,7 +99,7 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
         // drain.
     }
 
-    void stop(const vsdk::AttributeMap& extra) noexcept final {
+    void stop(const vsdk::ProtoStruct& extra) noexcept final {
         using std::swap;
         // Before we change the state of the class (especially by tearing down the model repository
         // used by Triton itself), wait until all old inferences are finished.
@@ -162,7 +163,7 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
     }
 
     std::shared_ptr<named_tensor_views> infer(const named_tensor_views& inputs,
-                                              const vsdk::AttributeMap& extra) final {
+                                              const vsdk::ProtoStruct& extra) final {
         // Acquire a shared lock on the mutex. This allows multiple `infer` calls to run in
         // parallel, but does not allow `reconfigure` to run in parallel with any other call.
         std::shared_lock<std::shared_mutex> lock(rwmutex_);
@@ -314,7 +315,7 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
         return {std::move(inference_result), ntvs};
     }
 
-    struct metadata metadata(const vsdk::AttributeMap& extra) final {
+    struct metadata metadata(const vsdk::ProtoStruct& extra) final {
 		// Acquire a shared lock on the mutex. This allows multiple `metadata` and `infer` calls to
 		// run in parallel, but does not allow `reconfigure` to run in parallel with any other
 		// call.
@@ -358,15 +359,15 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
     static void symlink_mlmodel_(struct state_& state) {
         const auto& attributes = state.configuration.attributes();
 
-        auto model_path = attributes->find("model_path");
-        if (model_path == attributes->end()) {
+        auto model_path = attributes.find("model_path");
+        if (model_path == attributes.end()) {
             std::ostringstream buffer;
             buffer << service_name
                    << ": Required parameter `model_path` not found in configuration";
             throw std::invalid_argument(buffer.str());
         }
 
-        const std::string* model_path_string = model_path->second->get<std::string>();
+        const std::string* model_path_string = model_path->second.get<std::string>();
         if (!model_path_string || model_path_string->empty()) {
             std::ostringstream buffer;
             buffer << service_name
@@ -454,15 +455,15 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
         remove_repo_symlink_(*state.get());
 
         // Pull the model name out of the configuration.
-        auto model_name = attributes->find("model_name");
-        if (model_name == attributes->end()) {
+        auto model_name = attributes.find("model_name");
+        if (model_name == attributes.end()) {
             std::ostringstream buffer;
             buffer << service_name
                    << ": Required parameter `model_name` not found in configuration";
             throw std::invalid_argument(buffer.str());
         }
 
-        auto* const model_name_string = model_name->second->get<std::string>();
+        auto* const model_name_string = model_name->second.get<std::string>();
         if (!model_name_string || model_name_string->empty()) {
             std::ostringstream buffer;
             buffer << service_name
@@ -474,14 +475,14 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
         state->model_name = std::move(*model_name_string);
 
         // Pull the model repository path out of the configuration.
-        auto model_repo_path = attributes->find("model_repository_path");
-        if (model_repo_path == attributes->end()) {
+        auto model_repo_path = attributes.find("model_repository_path");
+        if (model_repo_path == attributes.end()) {
             // With no model repository path, we try to construct our own by symlinking a single
             // model path. This line also sets state.model_repo_path and state.model_version.
             symlink_mlmodel_(*state.get());
         } else {
             // If the model_repository_path is specified, forbid specifying the model_path.
-            if (attributes->find("model_path") != attributes->end()) {
+            if (attributes.find("model_path") != attributes.end()) {
                 std::ostringstream buffer;
                 buffer << service_name
                        << ": Both the `model_repository_path` and `model_path` are set, "
@@ -489,7 +490,7 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
                 throw std::invalid_argument(buffer.str());
             }
 
-            auto* const model_repo_path_string = model_repo_path->second->get<std::string>();
+            auto* const model_repo_path_string = model_repo_path->second.get<std::string>();
             if (!model_repo_path_string || model_repo_path_string->empty()) {
                 std::ostringstream buffer;
                 buffer << service_name
@@ -501,9 +502,9 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
 
             // If you specify your own model repo path, you may specify your own model version
             // number, too.
-            auto model_version = attributes->find("model_version");
-            if (model_version != attributes->end()) {
-                auto* const model_version_value = model_version->second->get<double>();
+            auto model_version = attributes.find("model_version");
+            if (model_version != attributes.end()) {
+                auto* const model_version_value = model_version->second.get<double>();
                 if (!model_version_value || (*model_version_value < 1) ||
                     (std::nearbyint(*model_version_value) != *model_version_value)) {
                     std::ostringstream buffer;
@@ -517,9 +518,9 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
         }
 
         // Pull the backend directory out of the configuration, if provided.
-        auto backend_directory = attributes->find("backend_directory");
-        if (backend_directory != attributes->end()) {
-            auto* const backend_directory_string = backend_directory->second->get<std::string>();
+        auto backend_directory = attributes.find("backend_directory");
+        if (backend_directory != attributes.end()) {
+            auto* const backend_directory_string = backend_directory->second.get<std::string>();
             if (!backend_directory_string || backend_directory_string->empty()) {
                 std::ostringstream buffer;
                 buffer << service_name
@@ -531,8 +532,8 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
             state->backend_directory = std::move(*backend_directory_string);
         }
 
-        auto preferred_input_memory_type = attributes->find("preferred_input_memory_type");
-        if (preferred_input_memory_type == attributes->end()) {
+        auto preferred_input_memory_type = attributes.find("preferred_input_memory_type");
+        if (preferred_input_memory_type == attributes.end()) {
             // If the user didn't specify, decide if we can upgrade to
             // GPU based on whether any GPU devices are present.
             try {
@@ -546,7 +547,7 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
             }
         } else {
             auto* const preferred_input_memory_type_value =
-                preferred_input_memory_type->second->get<std::string>();
+                preferred_input_memory_type->second.get<std::string>();
             if (!preferred_input_memory_type_value) {
                 std::ostringstream buffer;
                 buffer
@@ -571,10 +572,10 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
             }
         }
 
-        auto preferred_input_memory_type_id = attributes->find("preferred_input_memory_type_id");
-        if (preferred_input_memory_type_id != attributes->end()) {
+        auto preferred_input_memory_type_id = attributes.find("preferred_input_memory_type_id");
+        if (preferred_input_memory_type_id != attributes.end()) {
             auto* const preferred_input_memory_type_id_value =
-                preferred_input_memory_type_id->second->get<double>();
+                preferred_input_memory_type_id->second.get<double>();
             if (!preferred_input_memory_type_id_value ||
                 (*preferred_input_memory_type_id_value < 0) ||
                 (std::nearbyint(*preferred_input_memory_type_id_value) !=
@@ -591,9 +592,9 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
         }
 
         // Process any tensor name remappings provided in the config.
-        auto remappings = attributes->find("tensor_name_remappings");
-        if (remappings != attributes->end()) {
-            const auto remappings_attributes = remappings->second->get<vsdk::AttributeMap>();
+        auto remappings = attributes.find("tensor_name_remappings");
+        if (remappings != attributes.end()) {
+            const auto remappings_attributes = remappings->second.get<vsdk::ProtoStruct>();
             if (!remappings_attributes) {
                 std::ostringstream buffer;
                 buffer << service_name
@@ -601,10 +602,10 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
                 throw std::invalid_argument(buffer.str());
             }
 
-            const auto populate_remappings = [](const vsdk::ProtoType& source,
+            const auto populate_remappings = [](const vsdk::ProtoValue& source,
                                                 auto& target,
                                                 auto& inv_target) {
-                const auto source_attributes = source.get<vsdk::AttributeMap>();
+                const auto source_attributes = source.get<vsdk::ProtoStruct>();
                 if (!source_attributes) {
                     std::ostringstream buffer;
                     buffer << service_name
@@ -614,7 +615,7 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
                 }
                 for (const auto& kv : *source_attributes) {
                     const auto& k = kv.first;
-                    const auto* const kv_string = kv.second->get<std::string>();
+                    const auto* const kv_string = kv.second.get<std::string>();
                     if (!kv_string) {
                         std::ostringstream buffer;
                         buffer
@@ -630,13 +631,13 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
 
             const auto inputs_where = remappings_attributes->find("inputs");
             if (inputs_where != remappings_attributes->end()) {
-                populate_remappings(*inputs_where->second,
+                populate_remappings(inputs_where->second,
                                     state->input_name_remappings,
                                     state->input_name_remappings_reversed);
             }
             const auto outputs_where = remappings_attributes->find("outputs");
             if (outputs_where != remappings_attributes->end()) {
-                populate_remappings(*outputs_where->second,
+                populate_remappings(outputs_where->second,
                                     state->output_name_remappings,
                                     state->output_name_remappings_reversed);
             }
@@ -1274,6 +1275,9 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
 };
 
 int serve(int argc, char* argv[]) noexcept try {
+
+    const vsdk::Instance instance;
+
     // Validate that the version of the triton server that we are
     // running against is sufficient w.r.t. the version we were built
     // against.

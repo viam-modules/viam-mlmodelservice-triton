@@ -12,7 +12,7 @@ RUN apt-get -y update && apt-get -y dist-upgrade && apt-get -y --no-install-reco
     sudo
 
 RUN apt-key adv --fetch-key http://repo.download.nvidia.com/jetson/jetson-ota-public.asc
-RUN echo 'deb https://repo.download.nvidia.com/jetson/common r35.5 main' > /etc/apt/sources.list.d/nvidia-jetson.list
+RUN echo 'deb https://repo.download.nvidia.com/jetson/common r35.6 main' > /etc/apt/sources.list.d/nvidia-jetson.list
 
 
 FROM base AS runtime
@@ -77,7 +77,8 @@ RUN echo 'deb https://apt.kitware.com/ubuntu/ focal main' > /etc/apt/sources.lis
 #
 RUN apt-get -y update && apt-get -y --no-install-recommends install \
     build-essential \
-    cmake \
+    cmake-data=3.31.7-0kitware1ubuntu20.04.1 \
+    cmake=3.31.7-0kitware1ubuntu20.04.1 \
     g++ \
     git \
     ninja-build \
@@ -96,7 +97,7 @@ RUN apt-get -y update && apt-get -y --no-install-recommends install \
 
 # Build grpc (and proto, etc.) from source, since we don't have a good version on focal
 RUN cd ${HOME}/opt/src && \
-    git clone --recurse-submodules -b v1.66.2 --depth 1 --shallow-submodules https://github.com/grpc/grpc && \
+    git clone --recurse-submodules -b v1.71.0 --depth 1 --shallow-submodules https://github.com/grpc/grpc && \
     cd grpc && \
     cmake -S . -B build -G Ninja \
         -DgRPC_CARES_PROVIDER=package \
@@ -106,6 +107,7 @@ RUN cd ${HOME}/opt/src && \
         -DgRPC_INSTALL=ON \
         -DgRPC_BUILD_TESTS=OFF \
         -DBUILD_SHARED_LIBS=ON \
+        -DCMAKE_CXX_STANDARD=17 \
         -DCMAKE_INSTALL_RPATH=/opt/viam/lib \
         -DCMAKE_BUILD_TYPE=RelWithDebInfo && \
     cmake --build build --target install -j3 -- -v && \
@@ -113,14 +115,15 @@ RUN cd ${HOME}/opt/src && \
 
 # Clone, build, and install the viam-cpp-sdk repo
 RUN cd ${HOME}/opt/src && \
-    git clone https://github.com/viamrobotics/viam-cpp-sdk.git -b releases/v0.0.11 && \
+    git clone https://github.com/viamrobotics/viam-cpp-sdk.git -b releases/v0.11.0 && \
     cd viam-cpp-sdk && \
     cmake -S . -B build -G Ninja \
       -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+      -DCMAKE_CXX_STANDARD=17 \
       -DCMAKE_PREFIX_PATH=/opt/viam \
       -DVIAMCPPSDK_BUILD_EXAMPLES=OFF \
       -DVIAMCPPSDK_BUILD_TESTS=OFF && \
-    PATH=/opt/viam/bin:$PATH cmake --build build --target install -- -v && \
+    PATH=/opt/viam/bin:$PATH cmake --build build --target install -j3 -- -v && \
     cmake --install build --prefix /opt/viam
 
 # Download and install the jetpack build of TritonServer and install it to /opt/tritonserver
@@ -141,7 +144,7 @@ RUN \
       -DVIAM_MLMODELSERVICE_TRITON_TRITONSERVER_ROOT=/opt/tritonserver/tritonserver \
       -DCMAKE_BUILD_TYPE=RelWithDebInfo \
       -DCMAKE_PREFIX_PATH=/opt/viam && \
-    cmake --build build --target install -- -v && \
+    cmake --build build --target install -j3 -- -v && \
     cmake --install build --prefix /opt/viam
 
 

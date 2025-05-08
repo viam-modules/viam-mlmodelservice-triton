@@ -1,4 +1,9 @@
-ARG TRITON_VERSION=24.09
+# 25.02 is the last version with built-in TF backend support, per
+# the release notes here:
+#
+# https://github.com/triton-inference-server/server/releases/tag/v2.56.0
+#
+ARG TRITON_VERSION=25.02
 ARG JETPACK
 
 FROM nvcr.io/nvidia/tritonserver:${TRITON_VERSION}-py3${JETPACK:+-igpu}-sdk AS nvidia-triton-build-base
@@ -15,9 +20,6 @@ RUN apt-get -y update && apt-get -y --no-install-recommends install \
     ca-certificates \
     gnupg
 
-RUN apt-key adv --fetch-key https://apt.kitware.com/keys/kitware-archive-latest.asc
-RUN echo 'deb https://apt.kitware.com/ubuntu/ jammy main' > /etc/apt/sources.list.d/kitware.list
-
 RUN apt-get -y update && apt-get -y --no-install-recommends install \
     cmake \
     git \
@@ -33,14 +35,15 @@ RUN apt-get -y update && apt-get -y --no-install-recommends install \
 # Clone, build, and install the viam-cpp-sdk repo
 RUN mkdir -p ${HOME}/opt/src
 RUN cd ${HOME}/opt/src && \
-    git clone https://github.com/viamrobotics/viam-cpp-sdk.git -b releases/v0.0.11 && \
+    git clone https://github.com/viamrobotics/viam-cpp-sdk.git -b releases/v0.11.0 && \
     cd viam-cpp-sdk && \
     cmake -S . -B build -G Ninja \
       -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+      -DCMAKE_CXX_STANDARD=17 \
       -DCMAKE_PREFIX_PATH=/opt/viam \
       -DVIAMCPPSDK_BUILD_EXAMPLES=OFF \
       -DVIAMCPPSDK_BUILD_TESTS=OFF && \
-    PATH=/opt/viam/bin:$PATH cmake --build build --target install -- -v && \
+    PATH=/opt/viam/bin:$PATH cmake --build build --target install -j3 -- -v && \
     cmake --install build --prefix /opt/viam
 
 RUN mkdir -p /opt/tritonserver/include
@@ -59,7 +62,7 @@ RUN \
       -DVIAM_MLMODELSERVICE_TRITON_TRITONSERVER_ROOT=/opt/tritonserver \
       -DCMAKE_BUILD_TYPE=RelWithDebInfo \
       -DCMAKE_PREFIX_PATH=/opt/viam && \
-    cmake --build build --target install -- -v && \
+    cmake --build build --target install -j3 -- -v && \
     cmake --install build --prefix /opt/viam
 
 
@@ -72,11 +75,11 @@ RUN apt-get -y update && apt-get -y --no-install-recommends install \
     sudo
 
 RUN apt-get -y update && apt-get -y --no-install-recommends install \
-    libboost-log1.74.0 \
+    libboost-log1.83.0 \
     libjemalloc2 \
-    libabsl20210324 \
-    libgrpc++1 \
-    libprotobuf23
+    libabsl20220623t64 \
+    libgrpc++1.51t64 \
+    libprotobuf32t64
 
 FROM runtime AS deploy
 ENV DEBIAN_FRONTEND=noninteractive
