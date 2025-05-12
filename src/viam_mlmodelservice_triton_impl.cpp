@@ -298,7 +298,7 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
         try {
             // Take ownership of the current state so it will be
             // destroyed when we leave the block.
-            decltype(state_) state = std::move(state_);
+            const std::unique_ptr<struct state_> state = std::move(state_);
 
             if (state) {
                 // Remove any symlinks we've added to our module workspace.
