@@ -90,28 +90,17 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
    public:
     explicit Service(vsdk::Dependencies dependencies, vsdk::ResourceConfig configuration)
         : MLModelService(configuration.name()),
-          state_(reconfigure_(std::move(dependencies), std::move(configuration))) {}
+          state_(configure_(std::move(dependencies), std::move(configuration))) {}
 
     ~Service() final {
-        // All invocations arrive via gRPC, so we know we are idle
-        // here. It should be safe to tear down all state
-        // automatically without needing to wait for anything more to
-        // drain.
+        stop();
     }
 
     void stop(const vsdk::ProtoStruct& extra) noexcept final {
         // Before we change the state of the class (especially by modifying the model repository
         // used by Triton itself), wait until all old inferences are finished.
         const std::unique_lock<std::shared_mutex> state_wlock(state_lock_);
-        try {
-            // Destroy the current state
-            state_.reset();
-
-            // Remove any symlinks we've added to our module workspace.
-            // TOOD: Can this be managed by `struct state` now?
-            remove_repo_symlink_(*state_.get());
-        } catch (...) {
-        }
+        stop_locked_(state_wlock);
     }
 
     using Stoppable::stop;
@@ -121,13 +110,8 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
         // Before we change the state of the class (especially by modifying the model repository
         // used by Triton itself), wait until all old inferences are finished.
         const std::unique_lock<std::shared_mutex> state_wlock(state_lock_);
-
-        // Drop our old state before creating a new one, since otherwise the old configuration
-        // and the new are competing for resources.
-        state_.reset();
-
-        // Build the new state we will use for future inferences
-        state_ = reconfigure_(std::move(dependencies), std::move(configuration));
+        stop_locked_(state_wlock);
+        state_ = configure_(std::move(dependencies), std::move(configuration));
     } catch (...) {
         // If reconfiguration fails for any reason, become stopped and rethrow.
         stop();
@@ -139,6 +123,12 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
         // Acquire a shared lock on the mutex. This allows multiple `infer` calls to run in
         // parallel, but does not allow `reconfigure` to run in parallel with any other call.
         std::shared_lock<std::shared_mutex> state_rlock(state_lock_);
+
+        if (!state_) {
+            std::ostringstream buffer;
+            buffer << service_name << ": cannot call `infer` on a stopped or unconfigured triton service";
+            throw std::runtime_error(buffer.str());
+        }
 
         auto inference_request = get_inference_request_();
 
@@ -291,11 +281,33 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
         // run in parallel, but does not allow `reconfigure` to run in parallel with any other
         // call.
         const std::shared_lock<std::shared_mutex> state_rlock(state_lock_);
+
+        if (!state_) {
+            std::ostringstream buffer;
+            buffer << service_name << ": cannot call `metadata` on a stopped or unconfigured triton service";
+            throw std::runtime_error(buffer.str());
+        }
+
         return state_->metadata;
     }
 
    private:
     struct state_;
+
+    void stop_locked_(const std::unique_lock<std::shared_mutex>&) noexcept {
+        try {
+            // Take ownership of the current state so it will be
+            // destroyed when we leave the block.
+            decltype(state_) state = std::move(state_);
+
+            if (state) {
+                // Remove any symlinks we've added to our module workspace.
+                // TODO: Can this be managed by `struct state` now?
+                remove_repo_symlink_(*state);
+            }
+        } catch (...) {
+        }
+    }
 
     static std::filesystem::path get_module_data_path_(const struct state_& state) {
         // The overall Viam config might have multiple Triton components that each run on separate
@@ -372,8 +384,8 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
         std::filesystem::remove_all(get_module_data_path_(state));
     }
 
-    std::unique_ptr<struct state_> reconfigure_(vsdk::Dependencies dependencies,
-                                                       vsdk::ResourceConfig configuration) {
+    static std::unique_ptr<struct state_> configure_(vsdk::Dependencies dependencies,
+                                                     vsdk::ResourceConfig configuration) {
         auto state =
             std::make_unique<struct state_>(std::move(dependencies), std::move(configuration));
 
@@ -387,7 +399,7 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
         // should be handled by the ModuleService automatically,
         // rather than requiring each component to validate the
         // presence of dependencies.
-        for (const auto& kv : state_->dependencies) {
+        for (const auto& kv : state->dependencies) {
             if (!kv.second) {
                 std::ostringstream buffer;
                 buffer << service_name << ": Dependency "
@@ -396,11 +408,7 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
             }
         }
 
-        const auto& attributes = state_->configuration.attributes();
-
-        // If we're reconfiguring and have an old model name symlinked into our module workspace,
-        // remove it before setting up the new repo.
-        remove_repo_symlink_(*state.get());
+        const auto& attributes = state->configuration.attributes();
 
         // Pull the model name out of the configuration.
         auto model_name = attributes.find("model_name");
@@ -420,7 +428,7 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
                       "or is an empty string";
             throw std::invalid_argument(buffer.str());
         }
-        state_->model_name = std::move(*model_name_string);
+        state->model_name = std::move(*model_name_string);
 
         // Pull the model repository path out of the configuration.
         auto model_repo_path = attributes.find("model_repository_path");
@@ -446,7 +454,7 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
                           "a string or is an empty string";
                 throw std::invalid_argument(buffer.str());
             }
-            state_->model_repo_path = std::move(*model_repo_path_string);
+            state->model_repo_path = std::move(*model_repo_path_string);
 
             // If you specify your own model repo path, you may specify your own model version
             // number, too.
@@ -461,7 +469,7 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
                               "natural number";
                     throw std::invalid_argument(buffer.str());
                 }
-                state_->model_version = static_cast<std::int64_t>(*model_version_value);
+                state->model_version = static_cast<std::int64_t>(*model_version_value);
             }
         }
 
@@ -477,7 +485,7 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
                           "or is an empty string";
                 throw std::invalid_argument(buffer.str());
             }
-            state_->backend_directory = std::move(*backend_directory_string);
+            state->backend_directory = std::move(*backend_directory_string);
         }
 
         auto preferred_input_memory_type = attributes.find("preferred_input_memory_type");
@@ -488,7 +496,7 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
                 int count = 0;
                 call_cuda(cudaGetDeviceCount)(&count);
                 if (count > 0) {
-                    state_->preferred_input_memory_type = TRITONSERVER_MEMORY_GPU;
+                    state->preferred_input_memory_type = TRITONSERVER_MEMORY_GPU;
                 }
             } catch (...) {
                 // Intentionally burying this exception
@@ -505,11 +513,11 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
                 throw std::invalid_argument(buffer.str());
             }
             if (*preferred_input_memory_type_value == "cpu") {
-                state_->preferred_input_memory_type = TRITONSERVER_MEMORY_CPU;
+                state->preferred_input_memory_type = TRITONSERVER_MEMORY_CPU;
             } else if (*preferred_input_memory_type_value == "cpu-pinned") {
-                state_->preferred_input_memory_type = TRITONSERVER_MEMORY_CPU_PINNED;
+                state->preferred_input_memory_type = TRITONSERVER_MEMORY_CPU_PINNED;
             } else if (*preferred_input_memory_type_value == "gpu") {
-                state_->preferred_input_memory_type = TRITONSERVER_MEMORY_GPU;
+                state->preferred_input_memory_type = TRITONSERVER_MEMORY_GPU;
             } else {
                 std::ostringstream buffer;
                 buffer << service_name
@@ -535,7 +543,7 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
                           "not a non-negative integer";
                 throw std::invalid_argument(buffer.str());
             }
-            state_->preferred_input_memory_type_id =
+            state->preferred_input_memory_type_id =
                 static_cast<std::int64_t>(*preferred_input_memory_type_id_value);
         }
 
@@ -580,14 +588,14 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
             const auto inputs_where = remappings_attributes->find("inputs");
             if (inputs_where != remappings_attributes->end()) {
                 populate_remappings(inputs_where->second,
-                                    state_->input_name_remappings,
-                                    state_->input_name_remappings_reversed);
+                                    state->input_name_remappings,
+                                    state->input_name_remappings_reversed);
             }
             const auto outputs_where = remappings_attributes->find("outputs");
             if (outputs_where != remappings_attributes->end()) {
                 populate_remappings(outputs_where->second,
-                                    state_->output_name_remappings,
-                                    state_->output_name_remappings_reversed);
+                                    state->output_name_remappings,
+                                    state->output_name_remappings_reversed);
             }
         }
 
@@ -599,10 +607,10 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
         // TODO: We should probably pool servers based on repo path
         // and backend directory.
         cxxapi::call(cxxapi::the_shim.ServerOptionsSetModelRepositoryPath)(
-            server_options.get(), state_->model_repo_path.c_str());
+            server_options.get(), state->model_repo_path.c_str());
 
         cxxapi::call(cxxapi::the_shim.ServerOptionsSetBackendDirectory)(
-            server_options.get(), state_->backend_directory.c_str());
+            server_options.get(), state->backend_directory.c_str());
 
         cxxapi::call(cxxapi::the_shim.ServerOptionsSetLogWarn)(server_options.get(), true);
         cxxapi::call(cxxapi::the_shim.ServerOptionsSetLogError)(server_options.get(), true);
@@ -621,7 +629,7 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
             cxxapi::call(cxxapi::the_shim.ServerIsLive)(server.get(), &result);
             if (result) {
                 cxxapi::call(cxxapi::the_shim.ServerModelIsReady)(
-                    server.get(), state_->model_name.c_str(), state_->model_version, &result);
+                    server.get(), state->model_name.c_str(), state->model_version, &result);
                 if (!result) {
                     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
                 }
@@ -638,7 +646,7 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
         {
             TRITONSERVER_Message* out = nullptr;
             cxxapi::call(cxxapi::the_shim.ServerModelMetadata)(
-                server.get(), state_->model_name.c_str(), state_->model_version, &out);
+                server.get(), state->model_name.c_str(), state->model_version, &out);
             model_metadata_message = cxxapi::take_unique(out);
         }
 
@@ -774,7 +782,7 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
             buffer << service_name << ": Model metadata `inputs` field is not an array";
             throw std::runtime_error(buffer.str());
         }
-        populate_tensor_infos(inputs, state_->input_name_remappings, &state_->metadata.inputs);
+        populate_tensor_infos(inputs, state->input_name_remappings, &state->metadata.inputs);
 
         if (!model_metadata_json.HasMember("outputs")) {
             std::ostringstream buffer;
@@ -787,10 +795,10 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
             buffer << service_name << ": Model metadata `outputs` field is not an array";
             throw std::runtime_error(buffer.str());
         }
-        populate_tensor_infos(outputs, state_->output_name_remappings, &state_->metadata.outputs);
+        populate_tensor_infos(outputs, state->output_name_remappings, &state->metadata.outputs);
 
-        state_->allocator = std::move(allocator);
-        state_->server = std::move(server);
+        state->allocator = std::move(allocator);
+        state->server = std::move(server);
 
         return state;
     }
