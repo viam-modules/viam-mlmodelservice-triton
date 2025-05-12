@@ -1221,8 +1221,9 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
         std::stack<cxxapi::unique_ptr<TRITONSERVER_InferenceRequest>> inference_requests;
     };
 
-    // The shared mutex allows concurrent access to state by readers in `infer` and `metadata` so
-    // but change out the state in `reconfigure` (or take it away in `close`).
+    // The shared mutex allows concurrent access to `state_` by
+    // readers in `infer` and `metadata` but grants exclusive access
+    // in `close` and `reconfigure`.
     std::shared_mutex state_lock_;
 
     // The current state, if we have one. Held by `unique_ptr` rather than `optional` because
