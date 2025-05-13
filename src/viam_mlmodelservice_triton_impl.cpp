@@ -90,72 +90,28 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
    public:
     explicit Service(vsdk::Dependencies dependencies, vsdk::ResourceConfig configuration)
         : MLModelService(configuration.name()),
-          state_(reconfigure_(std::move(dependencies), std::move(configuration))) {}
+          state_(configure_(std::move(dependencies), std::move(configuration))) {}
 
     ~Service() final {
-        // All invocations arrive via gRPC, so we know we are idle
-        // here. It should be safe to tear down all state
-        // automatically without needing to wait for anything more to
-        // drain.
+        stop();
     }
 
     void stop(const vsdk::ProtoStruct& extra) noexcept final {
-        using std::swap;
-        // Before we change the state of the class (especially by tearing down the model repository
+        // Before we change the state of the class (especially by modifying the model repository
         // used by Triton itself), wait until all old inferences are finished.
-        std::unique_lock<std::shared_mutex> lock(rwmutex_);
-        try {
-            std::lock_guard<std::mutex> lock(state_lock_);
-            if (!stopped_) {
-                stopped_ = true;
-
-                // Remove any symlinks we've added to our module workspace.
-                remove_repo_symlink_(*state_.get());
-
-                std::shared_ptr<struct state_> state;
-                swap(state_, state);
-                state_ready_.notify_all();
-            }
-        } catch (...) {
-        }
+        const std::unique_lock<std::shared_mutex> state_wlock(state_lock_);
+        stop_locked_(state_wlock);
     }
+
     using Stoppable::stop;
 
     void reconfigure(const vsdk::Dependencies& dependencies,
                      const vsdk::ResourceConfig& configuration) final try {
         // Before we change the state of the class (especially by modifying the model repository
         // used by Triton itself), wait until all old inferences are finished.
-        std::unique_lock<std::shared_mutex> lock(rwmutex_);
-        // TODO: Now that there is a mutex, the rest of this can be simplified.
-
-        // Swap out the state_ member with nullptr. Existing
-        // invocations will continue to operate against the state they
-        // hold, and new invocations will block on the state becoming
-        // populated.
-        using std::swap;
-        std::shared_ptr<struct state_> state;
-        {
-            // Wait until we have a state in play, then take
-            // ownership, so that we don't race with other
-            // reconfigurations and so other invocations wait on a new
-            // state.
-            std::unique_lock<std::mutex> lock(state_lock_);
-            state_ready_.wait(lock, [this]() { return (state_ != nullptr) && !stopped_; });
-            check_stopped_inlock_();
-            swap(state_, state);
-        }
-
-        state = reconfigure_(std::move(dependencies), std::move(configuration));
-
-        // Reconfiguration worked: put the state in under the lock,
-        // release the lock, and then notify any callers waiting on
-        // reconfiguration to complete.
-        {
-            std::lock_guard<std::mutex> lock(state_lock_);
-            check_stopped_inlock_();
-            swap(state_, state);
-        }
-        state_ready_.notify_all();
+        const std::unique_lock<std::shared_mutex> state_wlock(state_lock_);
+        stop_locked_(state_wlock);
+        state_ = configure_(std::move(dependencies), std::move(configuration));
     } catch (...) {
         // If reconfiguration fails for any reason, become stopped and rethrow.
         stop();
@@ -166,23 +122,28 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
                                               const vsdk::ProtoStruct& extra) final {
         // Acquire a shared lock on the mutex. This allows multiple `infer` calls to run in
         // parallel, but does not allow `reconfigure` to run in parallel with any other call.
-        std::shared_lock<std::shared_mutex> lock(rwmutex_);
-        const auto state = lease_state_();
+        std::shared_lock<std::shared_mutex> state_rlock(state_lock_);
 
-        auto inference_request = get_inference_request_(state);
+        if (!state_) {
+            std::ostringstream buffer;
+            buffer << service_name << ": cannot call `infer` on a stopped or unconfigured triton service";
+            throw std::runtime_error(buffer.str());
+        }
+
+        auto inference_request = get_inference_request_();
 
         // Attach inputs to the inference request
         std::stack<cuda_unique_ptr_> cuda_allocations;
         for (const auto& kv : inputs) {
             const std::string* input_name = &kv.first;
-            const auto where = state->input_name_remappings_reversed.find(*input_name);
-            if (where != state->input_name_remappings_reversed.end()) {
+            const auto where = state_->input_name_remappings_reversed.find(*input_name);
+            if (where != state_->input_name_remappings_reversed.end()) {
                 input_name = &where->second;
             }
             inference_request_input_visitor_ visitor(input_name,
                                                      inference_request.get(),
-                                                     state->preferred_input_memory_type,
-                                                     state->preferred_input_memory_type_id);
+                                                     state_->preferred_input_memory_type,
+                                                     state_->preferred_input_memory_type_id);
             cuda_allocations.push(boost::apply_visitor(visitor, kv.second));
         }
 
@@ -191,8 +152,8 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
 
         cxxapi::call(cxxapi::the_shim.InferenceRequestSetResponseCallback)(
             inference_request.get(),
-            state->allocator.get(),
-            state.get(),
+            state_->allocator.get(),
+            state_.get(),
             [](TRITONSERVER_InferenceResponse* response,
                const uint32_t flags,
                void* userp) noexcept {
@@ -203,7 +164,7 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
             &inference_promise);
 
         cxxapi::call(cxxapi::the_shim.ServerInferAsync)(
-            state->server.get(), inference_request.release(), nullptr);
+            state_->server.get(), inference_request.release(), nullptr);
         auto inference_response = cxxapi::take_unique(inference_future.get());
         auto error = cxxapi::the_shim.InferenceResponseError(inference_response.get());
         if (error) {
@@ -222,7 +183,7 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
         // views that cover buffers either in the inference response
         // or in the bufs.
         struct inference_result_type {
-            std::shared_ptr<struct state_> state;
+            std::shared_lock<std::shared_mutex> state_rlock;
             decltype(inference_response) ir;
             std::vector<std::unique_ptr<unsigned char[]>> bufs;
             named_tensor_views ntvs;
@@ -264,8 +225,8 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
             }
 
             std::string output_name(output_name_cstr);
-            const auto where = state->output_name_remappings.find(output_name);
-            if (where != state->output_name_remappings.end()) {
+            const auto where = state_->output_name_remappings.find(output_name);
+            if (where != state_->output_name_remappings.end()) {
                 output_name = where->second;
             }
 
@@ -300,10 +261,10 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
             inference_result->ntvs.emplace(std::move(output_name), std::move(tv));
         }
 
-        // Move the lease on `state` and ownership of `inference_response` into
+        // Move the read lock on `state` and ownership of `inference_response` into
         // `inference_result`. Otherwise, the result would return to the pool and our
         // views would no longer be valid.
-        inference_result->state = std::move(state);
+        inference_result->state_rlock = std::move(state_rlock);
         inference_result->ir = std::move(inference_response);
 
         // Finally, construct an aliasing shared_ptr which appears to
@@ -316,37 +277,36 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
     }
 
     struct metadata metadata(const vsdk::ProtoStruct& extra) final {
-		// Acquire a shared lock on the mutex. This allows multiple `metadata` and `infer` calls to
-		// run in parallel, but does not allow `reconfigure` to run in parallel with any other
-		// call.
-        std::shared_lock<std::shared_mutex> lock(rwmutex_);
-        // Just return a copy of our metadata from leased state.
-        return lease_state_()->metadata;
+        // Acquire a shared lock on the mutex. This allows multiple `metadata` and `infer` calls to
+        // run in parallel, but does not allow `reconfigure` to run in parallel with any other
+        // call.
+        const std::shared_lock<std::shared_mutex> state_rlock(state_lock_);
+
+        if (!state_) {
+            std::ostringstream buffer;
+            buffer << service_name << ": cannot call `metadata` on a stopped or unconfigured triton service";
+            throw std::runtime_error(buffer.str());
+        }
+
+        return state_->metadata;
     }
 
    private:
     struct state_;
-    std::shared_mutex rwmutex_;
 
-    void check_stopped_inlock_() const {
-        if (stopped_) {
-            std::ostringstream buffer;
-            buffer << service_name << ": service is stopped: ";
-            throw std::runtime_error(buffer.str());
+    void stop_locked_(const std::unique_lock<std::shared_mutex>&) noexcept {
+        try {
+            // Take ownership of the current state so it will be
+            // destroyed when we leave the block.
+            const std::unique_ptr<struct state_> state = std::move(state_);
+
+            if (state) {
+                // Remove any symlinks we've added to our module workspace.
+                // TODO: Can this be managed by `struct state` now?
+                remove_repo_symlink_(*state);
+            }
+        } catch (...) {
         }
-    }
-
-    std::shared_ptr<struct state_> lease_state_() {
-        // Wait for our state to be valid or stopped and then obtain a
-        // shared_ptr to state if valid, incrementing the refcount, or
-        // throws if the service is stopped. We don't need to deal
-        // with interruption or shutdown because the gRPC layer will
-        // drain requests during shutdown, so it shouldn't be possible
-        // for callers to get stuck here.
-        std::unique_lock<std::mutex> lock(state_lock_);
-        state_ready_.wait(lock, [this]() { return (state_ != nullptr) && !stopped_; });
-        check_stopped_inlock_();
-        return state_;
     }
 
     static std::filesystem::path get_module_data_path_(const struct state_& state) {
@@ -424,10 +384,10 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
         std::filesystem::remove_all(get_module_data_path_(state));
     }
 
-    static std::shared_ptr<struct state_> reconfigure_(vsdk::Dependencies dependencies,
-                                                       vsdk::ResourceConfig configuration) {
+    static std::unique_ptr<struct state_> configure_(vsdk::Dependencies dependencies,
+                                                     vsdk::ResourceConfig configuration) {
         auto state =
-            std::make_shared<struct state_>(std::move(dependencies), std::move(configuration));
+            std::make_unique<struct state_>(std::move(dependencies), std::move(configuration));
 
         // Validate that our dependencies (if any - we don't actually
         // expect any for this service) exist. If we did have
@@ -449,10 +409,6 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
         }
 
         const auto& attributes = state->configuration.attributes();
-
-        // If we're reconfiguring and have an old model name symlinked into our module workspace,
-        // remove it before setting up the new repo.
-        remove_repo_symlink_(*state.get());
 
         // Pull the model name out of the configuration.
         auto model_name = attributes.find("model_name");
@@ -957,23 +913,22 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
         return nullptr;
     }
 
-    cxxapi::unique_ptr<TRITONSERVER_InferenceRequest> get_inference_request_(
-        const std::shared_ptr<struct state_>& state) {
+    cxxapi::unique_ptr<TRITONSERVER_InferenceRequest> get_inference_request_() {
         cxxapi::unique_ptr<TRITONSERVER_InferenceRequest> result;
         {
-            std::unique_lock<std::mutex> lock(state->mutex);
-            if (!state->inference_requests.empty()) {
-                result = std::move(state->inference_requests.top());
-                state->inference_requests.pop();
+            const std::unique_lock<std::mutex> lock(state_->mutex);
+            if (!state_->inference_requests.empty()) {
+                result = std::move(state_->inference_requests.top());
+                state_->inference_requests.pop();
                 return result;
             }
         }
 
         result = cxxapi::make_unique<TRITONSERVER_InferenceRequest>(
-            state->server.get(), state->model_name.c_str(), state->model_version);
+            state_->server.get(), state_->model_name.c_str(), state_->model_version);
 
         cxxapi::call(cxxapi::the_shim.InferenceRequestSetReleaseCallback)(
-            result.get(), &release_inference_request_, state.get());
+            result.get(), &release_inference_request_, state_.get());
 
         return result;
     }
@@ -994,7 +949,7 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
             cxxapi::call(cxxapi::the_shim.InferenceRequestRemoveAllInputs)(taken.get());
             cxxapi::call(cxxapi::the_shim.InferenceRequestRemoveAllRequestedOutputs)(taken.get());
             auto* const state = reinterpret_cast<struct state_*>(userp);
-            std::unique_lock<std::mutex> lock(state->mutex);
+            const std::unique_lock<std::mutex> lock(state->mutex);
             // TODO: Should there be a maximum pool size?
             state->inference_requests.push(std::move(taken));
         } catch (...) {
@@ -1139,10 +1094,10 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
         std::int64_t memory_type_id_;
     };
 
-    MLModelService::tensor_views make_tensor_view_(TRITONSERVER_DataType data_type,
-                                                   const void* data,
-                                                   size_t data_bytes,
-                                                   std::vector<std::size_t>&& shape_vector) {
+    static MLModelService::tensor_views make_tensor_view_(TRITONSERVER_DataType data_type,
+                                                          const void* data,
+                                                          size_t data_bytes,
+                                                          std::vector<std::size_t>&& shape_vector) {
         switch (data_type) {
             case TRITONSERVER_TYPE_INT8: {
                 return make_tensor_view_t_<std::int8_t>(data, data_bytes, std::move(shape_vector));
@@ -1187,9 +1142,9 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
     }
 
     template <typename T>
-    MLModelService::tensor_views make_tensor_view_t_(const void* data,
-                                                     size_t data_bytes,
-                                                     std::vector<std::size_t>&& shape_vector) {
+    static MLModelService::tensor_views make_tensor_view_t_(const void* data,
+                                                            size_t data_bytes,
+                                                            std::vector<std::size_t>&& shape_vector) {
         const auto* const typed_data = reinterpret_cast<const T*>(data);
         const auto typed_size = data_bytes / sizeof(*typed_data);
         return MLModelService::make_tensor_view(typed_data, typed_size, std::move(shape_vector));
@@ -1203,7 +1158,7 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
     // will pick up the new state.
     struct state_ {
         explicit state_(vsdk::Dependencies dependencies, vsdk::ResourceConfig configuration)
-            : dependencies(std::move(dependencies)), configuration(std::move(configuration)) {}
+            : dependencies{std::move(dependencies)}, configuration{std::move(configuration)} {}
 
         // The dependencies and configuration we were given at
         // construction / reconfiguration.
@@ -1266,12 +1221,14 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
         std::stack<cxxapi::unique_ptr<TRITONSERVER_InferenceRequest>> inference_requests;
     };
 
-    // The mutex and condition variable needed to track our state
-    // across concurrent reconfiguration and invocation.
-    std::mutex state_lock_;
-    std::condition_variable state_ready_;
-    std::shared_ptr<struct state_> state_;
-    bool stopped_ = false;
+    // The shared mutex allows concurrent access to `state_` by
+    // readers in `infer` and `metadata` but grants exclusive access
+    // in `close` and `reconfigure`.
+    std::shared_mutex state_lock_;
+
+    // The current state, if we have one. Held by `unique_ptr` rather than `optional` because
+    // the `mutex` in `struct state` inhibits mobility.
+    std::unique_ptr<struct state_> state_;
 };
 
 int serve(int argc, char* argv[]) noexcept try {
