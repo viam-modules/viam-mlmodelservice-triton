@@ -34,6 +34,8 @@ struct shim {
     decltype(TRITONSERVER_ErrorDelete)* ErrorDelete = nullptr;
 
     decltype(TRITONSERVER_ServerOptionsNew)* ServerOptionsNew = nullptr;
+    decltype(TRITONSERVER_ServerOptionsSetModelControlMode)* ServerOptionsSetModelControlMode =
+        nullptr;
     decltype(TRITONSERVER_ServerOptionsSetBackendDirectory)* ServerOptionsSetBackendDirectory =
         nullptr;
     decltype(TRITONSERVER_ServerOptionsSetLogWarn)* ServerOptionsSetLogWarn = nullptr;
@@ -47,11 +49,17 @@ struct shim {
         nullptr;
     decltype(TRITONSERVER_ServerOptionsDelete)* ServerOptionsDelete = nullptr;
 
+    decltype(TRITONSERVER_ParameterNew)* ParameterNew = nullptr;
+    decltype(TRITONSERVER_ParameterDelete)* ParameterDelete = nullptr;
+
     decltype(TRITONSERVER_ServerNew)* ServerNew = nullptr;
     decltype(TRITONSERVER_ServerIsLive)* ServerIsLive = nullptr;
     decltype(TRITONSERVER_ServerIsReady)* ServerIsReady = nullptr;
+    decltype(TRITONSERVER_ServerLoadModel)* ServerLoadModel = nullptr;
+    decltype(TRITONSERVER_ServerLoadModelWithParameters)* ServerLoadModelWithParameters = nullptr;
     decltype(TRITONSERVER_ServerModelIsReady)* ServerModelIsReady = nullptr;
     decltype(TRITONSERVER_ServerInferAsync)* ServerInferAsync = nullptr;
+    decltype(TRITONSERVER_ServerUnloadModel)* ServerUnloadModel = nullptr;
     decltype(TRITONSERVER_ServerDelete)* ServerDelete = nullptr;
 
     decltype(TRITONSERVER_ServerModelMetadata)* ServerModelMetadata = nullptr;
@@ -99,6 +107,9 @@ struct lifecycle_traits<TRITONSERVER_Error>;
 
 template <>
 struct lifecycle_traits<TRITONSERVER_ServerOptions>;
+
+template <>
+struct lifecycle_traits<TRITONSERVER_Parameter>;
 
 template <>
 struct lifecycle_traits<TRITONSERVER_Server>;
@@ -190,6 +201,19 @@ struct lifecycle_traits<TRITONSERVER_ServerOptions> {
     template <class... Args>
     static auto dtor(Args&&... args) {
         call(the_shim.ServerOptionsDelete)(std::forward<Args>(args)...);
+    }
+};
+
+template <>
+struct lifecycle_traits<TRITONSERVER_Parameter> {
+    using value_type = TRITONSERVER_Parameter;
+    template <class... Args>
+    static auto ctor(Args&&... args) {
+        return (the_shim.ParameterNew)(std::forward<Args>(args)...);
+    }
+    template <class... Args>
+    static auto dtor(Args&&... args) {
+        (the_shim.ParameterDelete)(std::forward<Args>(args)...);
     }
 };
 
