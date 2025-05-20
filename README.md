@@ -156,6 +156,7 @@ The following attributes are available for the MLModel service `viam:mlmodelserv
 | `preferred_input_memory_type` | string | Optional | One of `cpu`, `cpu-pinned`, or `gpu`. This controlls the type of memory that will be allocated by the module for input tensors. If not specified, this will default to `cpu` if no CUDA-capable devices are detected at runtime, or to `gpu` if CUDA-capable devices are found.|
 | `preferred_input_memory_type_id` | int | Optional | CUDA identifier on which to allocate gpu or cpu-pinned input tensors. You probably don't need to change this unless you have multiple GPUs<br><br>Default: `0` (first device) |
 | `tensor_name_remappings` | obj | Optional | Provides two dictionaries under the `inputs` and `outputs` keys that rename the models' tensors. Other Viam services, like the [vision service]([/ml/vision/](https://docs.viam.com/registry/advanced/mlmodel-design/)) may expect to work with tensors with particular names. Use this map to rename the tensors from the loaded model to what the vision service expects as needed to meet those requirements.<br><br>Default: `{}` |
+| `model_config` | obj | Optional | [Triton Model Configuration Parameters](https://docs.nvidia.com/deeplearning/triton-inference-server/user-guide/docs/user_guide/model_configuration.html). If provided, this setting will override any configuration in the configured repository. |
 
 ### Example configurations
 
