@@ -147,6 +147,17 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
             cuda_allocations.push(boost::apply_visitor(visitor, kv.second));
         }
 
+        // Associate each desired output in our metadata with the request
+        for (const auto& output : state_->metadata.outputs) {
+            const std::string* output_name = &output.name;
+            const auto where = state_->output_name_remappings_reversed.find(*output_name);
+            if (where != state_->output_name_remappings_reversed.end()) {
+                output_name = &where->second;
+            }
+            cxxapi::call(cxxapi::the_shim.InferenceRequestAddRequestedOutput)(
+                inference_request.get(), output_name->c_str());
+        }
+
         std::promise<TRITONSERVER_InferenceResponse*> inference_promise;
         auto inference_future = inference_promise.get_future();
 

@@ -97,6 +97,8 @@ int main(int argc, char* argv[]) {
     cxxapi::the_shim.InferenceRequestAddInput = &TRITONSERVER_InferenceRequestAddInput;
     cxxapi::the_shim.InferenceRequestAppendInputData =
         &TRITONSERVER_InferenceRequestAppendInputData;
+    cxxapi::the_shim.InferenceRequestAddRequestedOutput =
+        &TRITONSERVER_InferenceRequestAddRequestedOutput;
     cxxapi::the_shim.InferenceRequestSetResponseCallback =
         &TRITONSERVER_InferenceRequestSetResponseCallback;
     cxxapi::the_shim.InferenceRequestDelete = &TRITONSERVER_InferenceRequestDelete;
