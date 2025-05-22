@@ -31,6 +31,9 @@
 #include <stack>
 #include <stdexcept>
 
+#include <google/protobuf/struct.pb.h>
+#include <google/protobuf/util/json_util.h>
+
 #include <grpcpp/channel.h>
 #include <grpcpp/create_channel.h>
 #include <grpcpp/security/credentials.h>
@@ -557,7 +560,71 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
         cxxapi::call(cxxapi::the_shim.ServerOptionsSetStrictModelConfig)(server_options.get(),
                                                                          false);
 
+        // We will load models on demand, rather than having Triton
+        // auto-load everything it finds in the repository. When
+        // triton auto-loads models, the only way to provide model
+        // configuration state is by placing that data inside the
+        // repository. By using explicit model control, we take over
+        // that responsibility, and can overwrite or provide
+        // configuration by calling
+        // `TRITONSERVER_LoadModelWithParameters`.
+        cxxapi::call(cxxapi::the_shim.ServerOptionsSetModelControlMode)(
+            server_options.get(), TRITONSERVER_MODEL_CONTROL_EXPLICIT);
+
         auto server = cxxapi::make_unique<TRITONSERVER_Server>(server_options.get());
+
+        // If the attributes contain a `model_config` section, use
+        // `ServerLoadModelWithParameters` in order to set additional
+        // model parameters per the Triton model repository
+        // configuration. Note that if set, these values will override
+        // any found in the model repository.
+
+        const auto model_config = attributes.find("model_config");
+        if (model_config != attributes.end()) {
+            // Make sure the `model_config` attribute is a document.
+            const auto model_config_attributes = model_config->second.get<vsdk::ProtoStruct>();
+            if (!model_config_attributes) {
+                std::ostringstream buffer;
+                buffer << service_name
+                       << ": Optional parameter `model_config` must be a dictionary";
+                throw std::invalid_argument(buffer.str());
+            }
+
+            // Convert the C++ SDK `ProtoStruct` back to a protobuf
+            // `Struct` so we can use the protobuf utilities to get it
+            // as a JSON string.
+            const auto model_config_struct = vsdk::to_proto(*model_config_attributes);
+
+            std::string model_config_json;
+            const auto model_config_json_status = google::protobuf::util::MessageToJsonString(
+                model_config_struct, &model_config_json, {});
+
+            if (!model_config_json_status.ok()) {
+                std::ostringstream buffer;
+                buffer << service_name
+                       << ": Optional parameter `model_config` failed conversion to JSON: "
+                       << model_config_json_status.ToString();
+                throw std::invalid_argument(buffer.str());
+            }
+
+            // The `TRITONSERVER_ServerLoadModelWithParameters`
+            // function expects a `TRITONSERVER_Parameter` of string
+            // type named `config` to contain the model configuration
+            // JSON.
+            const auto parameter = cxxapi::make_unique<TRITONSERVER_Parameter>(
+                "config", TRITONSERVER_PARAMETER_STRING, model_config_json.c_str());
+
+            // Stash the parameter in an array of pointers since
+            // TRITONSERVER_LoadModelWithParameters wants a
+            // pointer to array for the third argument.
+            std::array<const TRITONSERVER_Parameter*, 1> parameters = {parameter.get()};
+            cxxapi::call(cxxapi::the_shim.ServerLoadModelWithParameters)(
+                server.get(), state->model_name.c_str(), parameters.data(), parameters.size());
+        } else {
+            // TODO: Maybe we can always use `TRITONSERVER_LoadModelWithParameters` but pass no
+            // parameters?
+            cxxapi::call(cxxapi::the_shim.ServerLoadModel)(server.get(), state->model_name.c_str());
+        }
 
         // TODO(RSDK-4663): For now, we are hardcoding a wait that is
         // a subset of the RDK default timeout.

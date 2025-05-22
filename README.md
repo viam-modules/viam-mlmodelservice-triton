@@ -154,6 +154,7 @@ The following attributes are available for the MLModel service `viam:mlmodelserv
 | `backend_directory` | string | Optional | A container side path to the TritonServer "backend" directory. You normally do not need to override this; the build will set it to the backend directory of the Triton Server installation in the container. You may set it if you wish to use a different set of backends. |
 | `model_version` | int | Optional | The version of the model to be loaded from `model_repository_path`. If not specified, the module will use the newest version of the model named by model_name.<br><br>Default: `-1` (newest) |
 | `tensor_name_remappings` | obj | Optional | Provides two dictionaries under the `inputs` and `outputs` keys that rename the models' tensors. Other Viam services, like the [vision service]([/ml/vision/](https://docs.viam.com/registry/advanced/mlmodel-design/)) may expect to work with tensors with particular names. Use this map to rename the tensors from the loaded model to what the vision service expects as needed to meet those requirements.<br><br>Default: `{}` |
+| `model_config` | obj | Optional | [Triton Model Configuration Parameters](https://docs.nvidia.com/deeplearning/triton-inference-server/user-guide/docs/user_guide/model_configuration.html). If provided, this setting will override any configuration in the configured repository. |
 
 ### Example configurations
 
