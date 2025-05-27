@@ -115,7 +115,7 @@ RUN cd ${HOME}/opt/src && \
 
 # Clone, build, and install the viam-cpp-sdk repo
 RUN cd ${HOME}/opt/src && \
-    git clone https://github.com/viamrobotics/viam-cpp-sdk.git -b releases/v0.11.0 && \
+    git clone https://github.com/viamrobotics/viam-cpp-sdk.git -b releases/v0.13.0 && \
     cd viam-cpp-sdk && \
     cmake -S . -B build -G Ninja \
       -DCMAKE_BUILD_TYPE=RelWithDebInfo \
