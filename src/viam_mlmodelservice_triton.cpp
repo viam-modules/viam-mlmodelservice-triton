@@ -58,6 +58,8 @@ int main(int argc, char* argv[]) {
     cxxapi::the_shim.ErrorDelete = &TRITONSERVER_ErrorDelete;
 
     cxxapi::the_shim.ServerOptionsNew = &TRITONSERVER_ServerOptionsNew;
+    cxxapi::the_shim.ServerOptionsSetModelControlMode =
+        &TRITONSERVER_ServerOptionsSetModelControlMode;
     cxxapi::the_shim.ServerOptionsSetBackendDirectory =
         &TRITONSERVER_ServerOptionsSetBackendDirectory;
     cxxapi::the_shim.ServerOptionsSetLogWarn = &TRITONSERVER_ServerOptionsSetLogWarn;
@@ -71,11 +73,17 @@ int main(int argc, char* argv[]) {
         &TRITONSERVER_ServerOptionsSetStrictModelConfig;
     cxxapi::the_shim.ServerOptionsDelete = &TRITONSERVER_ServerOptionsDelete;
 
+    cxxapi::the_shim.ParameterNew = &TRITONSERVER_ParameterNew;
+    cxxapi::the_shim.ParameterDelete = &TRITONSERVER_ParameterDelete;
+
     cxxapi::the_shim.ServerNew = &TRITONSERVER_ServerNew;
     cxxapi::the_shim.ServerIsLive = &TRITONSERVER_ServerIsLive;
     cxxapi::the_shim.ServerIsReady = &TRITONSERVER_ServerIsReady;
+    cxxapi::the_shim.ServerLoadModel = &TRITONSERVER_ServerLoadModel;
+    cxxapi::the_shim.ServerLoadModelWithParameters = &TRITONSERVER_ServerLoadModelWithParameters;
     cxxapi::the_shim.ServerModelIsReady = &TRITONSERVER_ServerModelIsReady;
     cxxapi::the_shim.ServerInferAsync = &TRITONSERVER_ServerInferAsync;
+    cxxapi::the_shim.ServerUnloadModel = &TRITONSERVER_ServerUnloadModel;
     cxxapi::the_shim.ServerDelete = &TRITONSERVER_ServerDelete;
 
     cxxapi::the_shim.ServerModelMetadata = &TRITONSERVER_ServerModelMetadata;
@@ -97,6 +105,8 @@ int main(int argc, char* argv[]) {
     cxxapi::the_shim.InferenceRequestAddInput = &TRITONSERVER_InferenceRequestAddInput;
     cxxapi::the_shim.InferenceRequestAppendInputData =
         &TRITONSERVER_InferenceRequestAppendInputData;
+    cxxapi::the_shim.InferenceRequestAddRequestedOutput =
+        &TRITONSERVER_InferenceRequestAddRequestedOutput;
     cxxapi::the_shim.InferenceRequestSetResponseCallback =
         &TRITONSERVER_InferenceRequestSetResponseCallback;
     cxxapi::the_shim.InferenceRequestDelete = &TRITONSERVER_InferenceRequestDelete;
