@@ -1,7 +1,7 @@
 # Viam Triton ML Model Service
 
 A Viam provided ML Model service backed by NVIDIA's [Triton Inference Server](https://developer.nvidia.com/triton-inference-server).
-Configure this ML Model service as a modular resource on your machine with a [Jetson board](https://docs.viam.com/build/configure/components/board/jetson/) to deploy TensorFlow (not TensorFlow Lite) or PyTorch ML models to your machine faster while consuming less computer power.
+Configure this ML Model service as a modular resource on your machine with a [Jetson board](https://docs.viam.com/build/configure/components/board/jetson/) or another supported machine to deploy [supported models](https://docs.nvidia.com/deeplearning/triton-inference-server/user-guide/docs/backend/docs/backend_platform_support_matrix.html) to your machine faster while consuming less computer power.
 
 > [!Note]
 > For more information, see the [ML Model service documentation](/ml/deploy/).
@@ -73,8 +73,7 @@ To deploy an existing model on your machine, you can either 1) specify the name 
 ### Option 1: use a model from the Viam registry
 
 You can download an ML model from Viam's registry. Head to
-https://app.viam.com/registry?type=ML+Model to see the available models. Choose a model that uses either
-the TensorFlow or PyTorch model framework; this service does not support TensorFlow Lite. Once you've added this
+https://app.viam.com/registry?type=ML+Model to see the available models. Choose a model that uses a [supported model framework](https://docs.nvidia.com/deeplearning/triton-inference-server/user-guide/docs/backend/docs/backend_platform_support_matrix.html). Once you've added this
 Triton MLModel service to your robot's config, you can select the model you want to use from its
 section in the builder tab. To clarify: you don't add the model with the `+` symbol in the top-left
 of the builder page; you add it with the `select model` button in the RC card for the Triton
