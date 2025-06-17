@@ -4,7 +4,7 @@ A Viam provided ML Model service backed by NVIDIA's [Triton Inference Server](ht
 Configure this ML Model service as a modular resource on your machine with a [Jetson board](https://docs.viam.com/build/configure/components/board/jetson/) or another supported machine to deploy [supported models](https://docs.nvidia.com/deeplearning/triton-inference-server/user-guide/docs/backend/docs/backend_platform_support_matrix.html) to your machine faster while consuming less computer power.
 
 > [!Note]
-> For more information, see the [ML Model service documentation](/ml/deploy/).
+> For more information, see the [ML Model service documentation](https://docs.viam.com/dev/reference/apis/services/ml/).
 
 ## Requirements
 
@@ -13,7 +13,7 @@ An NVIDIA Jetson Orin board or other machine with an NVIDIA GPU with the followi
 1. The NVIDIA Container Runtime (which can be installed with `sudo apt-get install nvidia-container`)
 2. On machines that support it, [Jetpack 5 or Jetpack 6](https://developer.nvidia.com/embedded/jetpack) (which can be installed with `sudo apt-get install nvidia-jetpack`)
 
-Then, if you haven't done so already, create a new robot in [the Viam app](https://app.viam.com).
+Then, if you haven't done so already, create a new robot in [Viam](https://app.viam.com).
 [Install `viam-server` on the board](https://docs.viam.com/get-started/installation/prepare/jetson-agx-orin-setup/) and connect to the robot.
 
 ## Install from Viam registry
@@ -35,9 +35,9 @@ directory of this repo.
 ## Configure your Triton ML Model Service
 
 > [!Note]
-> Before configuring your ML Model service module, you must [create a robot](https://docs.viam.com/manage/fleet/robots/#add-a-new-robot).
+> Before configuring your ML Model service module, you must [create a machine](https://docs.viam.com/operate/get-started/setup/).
 
-Navigate to the **Config** tab of your robot’s page in [the Viam app](https://app.viam.com/).
+Navigate to the **Config** tab of your machine's page in [Viam](https://app.viam.com/).
 Click on the **Services** subtab and click **Create service**.
 Select **ML Model**, then search for the `mlmodelservice:triton` model.
 Click **Add module**.
@@ -58,17 +58,17 @@ Your `"modules"` array should have an entry like the following:
 (The version used might differ from this example.)
 Save your config.
 
-> [!NOTE]
-> For more information, see [Configure a Robot](https://docs.viam.com/manage/configuration/).
-
 Now, to configure the service's **Attributes**, you have two options.
 You can use a TensorFlow or PyTorch model from the [Registry](https://app.viam.com/registry), or you can load an existing TensorFlow or PyTorch model on your machine.
 To deploy a model from the Registry, navigate back to the **Config** tab of your machine in the Viam app and switch back to **Builder** mode.
 Click on the **Select ML model** field and select a model from the dropdown that appears.
-Your ML model service will automatically be configured with this model.
+Your ML model service will automatically reconfigure to use this model.
 You can explore the available models in the [Registry](https://app.viam.com/registry).
 
-To deploy an existing model on your machine, you can either 1) specify the name of a model downloaded from the Viam registry, or 2) [create your own local model repository](#create-a-repository-to-store-the-ml-model-to-deploy) on your machine.
+To deploy an existing model on your machine, you can:
+
+- specify the name of a model downloaded from the Viam registry
+- [create your own local model repository](#create-a-repository-to-store-the-ml-model-to-deploy) on your machine.
 
 ### Option 1: use a model from the Viam registry
 
@@ -154,7 +154,7 @@ The following attributes are available for the MLModel service `viam:mlmodelserv
 | `backend_directory` | string | Optional | A container side path to the TritonServer "backend" directory. You normally do not need to override this; the build will set it to the backend directory of the Triton Server installation in the container. You may set it if you wish to use a different set of backends. |
 | `model_version` | int | Optional | The version of the model to be loaded from `model_repository_path`. If not specified, the module will use the newest version of the model named by model_name.<br><br>Default: `-1` (newest) |
 | `tensor_name_remappings` | obj | Optional | Provides two dictionaries under the `inputs` and `outputs` keys that rename the models' tensors. Other Viam services, like the [vision service]([/ml/vision/](https://docs.viam.com/registry/advanced/mlmodel-design/)) may expect to work with tensors with particular names. Use this map to rename the tensors from the loaded model to what the vision service expects as needed to meet those requirements.<br><br>Default: `{}` |
-| `model_config` | obj | Optional | [Triton Model Configuration Parameters](https://docs.nvidia.com/deeplearning/triton-inference-server/user-guide/docs/user_guide/model_configuration.html). If provided, this setting will override any configuration in the configured repository. |
+| `model_config` | obj | Optional | Supports all [Triton Model Configuration Parameters](https://docs.nvidia.com/deeplearning/triton-inference-server/user-guide/docs/user_guide/model_configuration.html). If provided, this setting overrides configuration in the model repository. Use this attribute to configure performance tweaks such as [instance groups](https://docs.nvidia.com/deeplearning/triton-inference-server/user-guide/docs/user_guide/model_configuration.html#instance-groups) (multiple instances of a model) and [dynamic batching](https://docs.nvidia.com/deeplearning/triton-inference-server/user-guide/docs/user_guide/optimization.html#dynamic-batcher) (combining requests into batches). |
 
 ### Example configurations
 
@@ -232,4 +232,4 @@ If you have your own Triton model repository, you could use it like this:
   }
   ```
 
-    You can now connect this vision service to a [transform camera](https://docs.viam.com/build/configure/components/camera/transform/), or get detections programmatically through one of Viam's [client SDKs](https://docs.viam.com/build/program/).
+You can now connect this vision service to a [transform camera](https://docs.viam.com/build/configure/components/camera/transform/), or get detections programmatically through one of Viam's [client SDKs](https://docs.viam.com/build/program/).
