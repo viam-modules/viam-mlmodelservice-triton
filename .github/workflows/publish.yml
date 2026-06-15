@@ -29,22 +29,22 @@ jobs:
           - docker_suffix: jetpack5
             dockerfile: Dockerfile.triton-jetpack-focal
             build_args:
-            runs_on: buildjet-8vcpu-ubuntu-2204-arm
+            runs_on: github-linux-arm64-8core
             platform: linux/arm64
           - docker_suffix: jetpack6
             dockerfile: Dockerfile.nvcr-triton-containers
             build_args: JETPACK=1
-            runs_on: buildjet-8vcpu-ubuntu-2204-arm
+            runs_on: github-linux-arm64-8core
             platform: linux/arm64
           - docker_suffix: cuda12_arm
             dockerfile: Dockerfile.nvcr-triton-containers
             build_args:
-            runs_on: buildjet-8vcpu-ubuntu-2204-arm
+            runs_on: github-linux-arm64-8core
             platform: linux/arm64
           - docker_suffix: cuda12_amd64
             dockerfile: Dockerfile.nvcr-triton-containers
             build_args:
-            runs_on: buildjet-8vcpu-ubuntu-2204
+            runs_on: ubuntu-large
             platform: linux/amd64
     runs-on: ${{ matrix.build_target.runs_on }}
     permissions:
