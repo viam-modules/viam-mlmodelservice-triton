@@ -114,15 +114,20 @@ RUN cd ${HOME}/opt/src && \
     cmake --install build --prefix /opt/viam
 
 # Clone, build, and install the viam-cpp-sdk repo
+#
+# TODO: Why do we suddenly need VIAMCPPSDK_USE_WALL_WERROR=OFF? The api headers get pulled with -system, and we
+# didn't need to do this before we upgraded to the latest C++ SDK.
+
 RUN cd ${HOME}/opt/src && \
-    git clone https://github.com/viamrobotics/viam-cpp-sdk.git -b releases/v0.13.0 && \
+    git clone https://github.com/viamrobotics/viam-cpp-sdk.git -b releases/v0.39.0 && \
     cd viam-cpp-sdk && \
     cmake -S . -B build -G Ninja \
       -DCMAKE_BUILD_TYPE=RelWithDebInfo \
       -DCMAKE_CXX_STANDARD=17 \
       -DCMAKE_PREFIX_PATH=/opt/viam \
       -DVIAMCPPSDK_BUILD_EXAMPLES=OFF \
-      -DVIAMCPPSDK_BUILD_TESTS=OFF && \
+      -DVIAMCPPSDK_BUILD_TESTS=OFF \
+      -DVIAMCPPSDK_USE_WALL_WERROR=OFF && \
     PATH=/opt/viam/bin:$PATH cmake --build build --target install -j3 -- -v && \
     cmake --install build --prefix /opt/viam
 

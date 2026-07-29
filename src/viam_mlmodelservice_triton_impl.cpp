@@ -46,7 +46,6 @@
 #include <viam/sdk/config/resource.hpp>
 #include <viam/sdk/module/service.hpp>
 #include <viam/sdk/registry/registry.hpp>
-#include <viam/sdk/resource/reconfigurable.hpp>
 #include <viam/sdk/resource/stoppable.hpp>
 #include <viam/sdk/rpc/server.hpp>
 #include <viam/sdk/services/mlmodel.hpp>
@@ -89,7 +88,7 @@ auto call_cuda(cudaError_t (*fn)(Args... args)) noexcept {
 // better to retain it, in case support is ever needed again. So,
 // `Service` here explicitly derives from `Stoppable` and
 // `Reconfigurable`, but in practice those methods are unreachable.
-class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk::Reconfigurable {
+class Service : public vsdk::MLModelService, public vsdk::Stoppable {
    public:
     explicit Service(vsdk::Dependencies dependencies, vsdk::ResourceConfig configuration)
         : MLModelService(configuration.name()),
@@ -108,8 +107,9 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
 
     using Stoppable::stop;
 
+    // TODO(acm): This method can probably be removed.
     void reconfigure(const vsdk::Dependencies& dependencies,
-                     const vsdk::ResourceConfig& configuration) final try {
+                     const vsdk::ResourceConfig& configuration) try {
         // Before we change the state of the class (especially by modifying the model repository
         // used by Triton itself), wait until all old inferences are finished.
         const std::unique_lock<std::shared_mutex> state_wlock(state_lock_);
@@ -119,6 +119,11 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable, public vsdk
         // If reconfiguration fails for any reason, become stopped and rethrow.
         stop();
         throw;
+    }
+
+    /// @brief Get the status of the instance.
+    vsdk::ProtoStruct get_status() final {
+        return {};
     }
 
     std::shared_ptr<named_tensor_views> infer(const named_tensor_views& inputs,
