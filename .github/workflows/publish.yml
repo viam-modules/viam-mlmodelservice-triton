@@ -5,7 +5,9 @@ on:
 
 env:
   DOCKER_TAG: ghcr.io/${{ github.repository }}
-  VERSION: ${{ github.ref_name }}
+  # On a release, ref_name is the (semver) tag. On workflow_dispatch it is the branch name, which
+  # can contain slashes and is not a valid image tag; fall back to a throwaway value (we never push).
+  VERSION: ${{ github.event_name == 'release' && github.ref_name || 'workflow-dispatch' }}
 
 jobs:
   validate-tag:  # Make sure the tag we're publishing looks like semantic versioning
