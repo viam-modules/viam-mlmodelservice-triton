@@ -121,6 +121,11 @@ class Service : public vsdk::MLModelService, public vsdk::Stoppable {
         throw;
     }
 
+    /// @brief Get the status of the instance.
+    vsdk::ProtoStruct get_status() final {
+        return {};
+    }
+
     std::shared_ptr<named_tensor_views> infer(const named_tensor_views& inputs,
                                               const vsdk::ProtoStruct& extra) final {
         // Acquire a shared lock on the mutex. This allows multiple `infer` calls to run in
