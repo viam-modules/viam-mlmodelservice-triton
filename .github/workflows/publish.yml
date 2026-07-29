@@ -1,6 +1,7 @@
 on:
   release:
     types: [published]
+  workflow_dispatch:  # Validate that the containers build, without pushing or publishing.
 
 env:
   DOCKER_TAG: ghcr.io/${{ github.repository }}
@@ -11,6 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Validate tag format
+        if: github.event_name == 'release'  # No tag to validate on workflow_dispatch; skip so container still runs.
         run: |
           TAG="${{ github.event.release.tag_name }}"
           echo "Validating tag: '$TAG'"
@@ -73,6 +75,7 @@ jobs:
 
   module:  # Upload the module to the Viam modular registry
     needs: [validate-tag, container]
+    if: github.event_name == 'release'  # Nothing to publish on workflow_dispatch.
     strategy:
       # Until Viam's tags get priorities, it is very important to deploy the Jetpack versions
       # *before* the CUDA versions. Otherwise, a Jetpack machine will use the CUDA version of the
@@ -101,7 +104,6 @@ jobs:
       run: |
         TAG=${{ env.DOCKER_TAG }}/${{ matrix.platform.docker_suffix }}:$VERSION make -f Makefile.module module.tar.gz
     - uses: viamrobotics/upload-module@v1
-      if: github.event_name == 'release'
       with:
         module-path: module.tar.gz
         platform: linux/${{ matrix.platform.arch }}
