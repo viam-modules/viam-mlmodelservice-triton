@@ -1,6 +1,6 @@
 {
   "$schema": "https://dl.viam.dev/module.schema.json",
-  "module_id": "viam:mlmodelservice-triton-jetpack",
+  "module_id": "viam:mlmodelservice-triton",
   "visibility": "public",
   "url": "https://github.com/viam-modules/viam-mlmodelservice-triton",
   "description": "Viam Triton Inference Server Module",

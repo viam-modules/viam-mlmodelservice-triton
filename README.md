@@ -18,7 +18,7 @@ Then, if you haven't done so already, create a new robot in [Viam](https://app.v
 
 ## Install from Viam registry
 
-The module is named `viam:mlmodelservice-triton-jetpack`. Once you've got the module on your smart machine, the service is named `viam:mlmodelservice:triton`. It implements the [`MLModelService` interface](https://github.com/viamrobotics/api/blob/main/proto/viam/service/mlmodel/v1/mlmodel.proto): the main way to interact with it is with the `Infer` RPC, though you can also get info about the service with the `Metadata` RPC. You probably don't need to send RPCs to it directly, though: instead, have a Vision Service send things to it, and you interact with the Vision Service.
+The module is named `viam:mlmodelservice-triton`. Once you've got the module on your smart machine, the service is named `viam:mlmodelservice:triton`. It implements the [`MLModelService` interface](https://github.com/viamrobotics/api/blob/main/proto/viam/service/mlmodel/v1/mlmodel.proto): the main way to interact with it is with the `Infer` RPC, though you can also get info about the service with the `Metadata` RPC. You probably don't need to send RPCs to it directly, though: instead, have a Vision Service send things to it, and you interact with the Vision Service.
 
 ## Build and Run Locally
 
@@ -50,8 +50,8 @@ Your `"modules"` array should have an entry like the following:
 ```json
 {
   "type": "registry",
-  "name": "viam_mlmodelservice-triton-jetpack",
-  "module_id": "viam:mlmodelservice-triton-jetpack",
+  "name": "viam_mlmodelservice-triton",
+  "module_id": "viam:mlmodelservice-triton",
   "version": "0.4.0"
 }
 ```
